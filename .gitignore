@@ -1,0 +1,25 @@
+# Environment
+.env
+.env.local
+
+# Output (generated per application — not committed)
+output/
+
+# Design system overrides (personal, not shared)
+design-system/user.css
+
+# Node
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
