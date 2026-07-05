@@ -6,8 +6,6 @@
 # Your actual profile — the template is committed, your data is not
 profile/profile.json
 
-# Your actual design system — the example is committed, yours is not
-design-system/default.md
 
 # Your actual application briefs — example-brief.json is committed, yours are not
 briefs/*.json

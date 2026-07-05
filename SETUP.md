@@ -105,19 +105,12 @@ This file is gitignored — it will never be committed or pushed.
 
 Your design system is the visual baseline for every page you generate. The default is clean, neutral, and typographic — designed to look intentional without being templated.
 
-`[Terminal]`
-```bash
-cp design-system/default.md.example design-system/default.md
-```
-
 `[Editor]` Open `design-system/default.md` and adjust colours, fonts, or spacing to match your personal brand. Or leave it untouched — the defaults work well out of the box.
 
 **You should now have:**
 ```
-✓ design-system/default.md
+✓ design-system/default.md  (already in the repo — just edit it)
 ```
-
-This file is gitignored — your personal DS never gets committed.
 
 ---
 
@@ -288,7 +281,7 @@ chmod +x brainstorm.sh
 
 **The page looks unstyled**
 
-Your `design-system/default.md` is missing. See Step 3.
+Check that `design-system/default.md` exists. It ships with the repo — if it's missing, re-clone or restore it from git.
 
 **brainstorm.sh fetched an empty or broken JD**
 
