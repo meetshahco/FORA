@@ -1,10 +1,68 @@
 # FORA
 
-**Turn a job description into a deployed, personalised application page — in one command.**
+**Turn a job description into a personalised application landing page.**
 
-FORA is an open-source agentic pipeline for designers. You give it a job description. It reads your profile, analyses the role, runs a focused brainstorm, and generates a tailored HTML page — hosted live, ready to send.
+FORA is an open-source agentic pipeline for designers. You give it a job description. It reads your profile, analyses the role, runs a focused brainstorm, and produces a tailored page — three acts: who you are, what you've done (framed for this company), and what you'll bring in the first 90 days.
 
-Every page has three acts: who you are, what you've done (framed for this company), and what you'll bring in the first 90 days. The design adapts to the company's visual system if one is available. The content is never generic.
+No generic applications. No templates that look like templates.
+
+---
+
+## Quick Start
+
+```bash
+git clone https://github.com/meetshahco/FORA.git
+cd FORA
+
+# Step 1 — build your profile (once)
+# Open any AI chat, paste prompts/profile-builder-prompt.md, share your resume
+# Save the output to profile/profile.json
+
+# Step 2 — run a brainstorm (per application)
+./brainstorm.sh https://company.com/jobs/role
+# Paste clipboard into any AI chat → save the brief to briefs/[slug].json
+
+# Step 3 — generate your page
+node generate.js --run briefs/[slug].json
+open output/[slug]/index.html
+
+# Step 4 — publish (optional)
+node generate.js --publish briefs/[slug].json
+# → https://fora-pages.vercel.app/[slug]
+```
+
+---
+
+## What you'll build
+
+In your first afternoon with FORA:
+
+```
+✓ Build your private career knowledge base (profile.json)
+✓ Brainstorm one application against a real JD
+✓ Generate a personalised landing page
+✓ Publish it live (optional)
+
+Result: a URL you can send in a cold message
+→ https://fora-pages.vercel.app/company-role
+```
+
+---
+
+## Usage modes
+
+FORA is tool-agnostic and cost-optional. Use as much or as little automation as you want.
+
+**Mode 1 — Manual (zero cost, no setup)**
+Run `brainstorm.sh` (or paste manually) into any AI chat. Ask the same AI to generate HTML section by section. Deploy however you like — Netlify drop, GitHub Pages, or just email the file. No API key. No spend.
+
+**Mode 2 — Automated codegen**
+Same brainstorm flow, but `generate.js --run` handles the HTML generation for you using the Anthropic API. Requires `ANTHROPIC_API_KEY` in `.env`. Output lands in `output/` as a local file.
+
+**Mode 3 — Fully automated**
+`generate.js --publish` generates and deploys in one command. Requires `ANTHROPIC_API_KEY` + `VERCEL_TOKEN`. Vercel is the default deploy target but you can swap it for anything — the assembled HTML is just a file.
+
+See `.env.example` for exactly which keys each mode needs.
 
 ---
 
@@ -14,22 +72,23 @@ Every page has three acts: who you are, what you've done (framed for this compan
 JD URL
   │
   ▼
-brainstorm-prompt.md + profile.json  →  AI chat  →  content_brief.json
-                                                             │
-                                                             ▼
-                                                      generate.js --run
-                                                             │
-                                                             ▼
-                                                    assembled HTML page
-                                                             │
-                                                             ▼
-                                              generate.js --publish  →  live URL
+brainstorm-prompt.md + profile.json
+  │   (paste into any AI chat)
+  ▼
+content_brief.json
+  │
+  ▼
+generate.js --run          ← uses Anthropic API (Mode 2+3)
+  │   or: paste codegen-prompt.md manually (Mode 1)
+  ▼
+assembled HTML page
+  │
+  ▼
+generate.js --publish      ← deploys to Vercel (Mode 3)
+  │   or: deploy anywhere (Mode 1+2)
+  ▼
+live URL
 ```
-
-1. **Build your profile.** Run `profile-builder-prompt.md` once with your resume and case studies. Outputs `profile.json` — your private source of truth.
-2. **Run a brainstorm.** Use `brainstorm.sh [JD URL]` (or paste manually). The AI analyses the JD, proposes content for all three acts, and locks a `content_brief.json`.
-3. **Generate the page.** `node generate.js --run briefs/[slug].json` assembles the HTML from your brief, your profile, and the design system.
-4. **Publish.** `node generate.js --publish briefs/[slug].json` deploys to Vercel and returns a live URL.
 
 ---
 
@@ -44,18 +103,18 @@ FORA/
 ├── prompts/
 │   ├── profile-builder-prompt.md # Run once to build profile.json from your materials
 │   ├── brainstorm-prompt.md      # Run per application — JD → content_brief.json
-│   └── codegen-prompt.md         # Used internally by generate.js — not for manual use
+│   └── codegen-prompt.md         # Used by generate.js — or paste manually for Mode 1
 │
 ├── briefs/
 │   ├── example-brief.json        # Reference schema for content_brief.json
 │   └── *.json                    # Your briefs — gitignored, never committed
 │
 ├── templates/
-│   ├── three-act.json            # Default template: hero → work → bring → cta
+│   ├── three-act.json            # Default: hero → work → bring → cta
 │   ├── work-first.json           # Leads with proof of work
 │   ├── single-statement.json     # Minimal: one statement + one case study + cta
 │   └── sections/
-│       ├── _base.html            # Injected into every page head (fonts, tokens, reset)
+│       ├── _base.html            # Injected into every page head
 │       ├── nav.html
 │       ├── act1_hero.html
 │       ├── act2_work.html
@@ -67,46 +126,37 @@ FORA/
 ├── design-system/
 │   └── default.md                # Your personal DS — gitignored, never committed
 │
-├── output/                       # Generated HTML — gitignored, never committed
+├── output/                       # Generated HTML — gitignored
 │
 ├── generate.js                   # Main script: --run and --publish modes
-├── brainstorm.sh                 # Helper: fetches JD, assembles prompt, copies to clipboard
-├── .env.example                  # Environment variables you need to set
+├── brainstorm.sh                 # Fetches JD, assembles prompt, copies to clipboard
+├── .env.example                  # Environment variables (all optional depending on mode)
 ├── DEVPLAN.md                    # MVP and V1 build plan
-└── SETUP.md                      # Step-by-step first-afternoon setup guide
+└── SETUP.md                      # Step-by-step first-afternoon guide
 ```
 
 ---
 
 ## Key concepts
 
-**profile.json** is private and powerful. It contains your career, case studies, philosophy, and tone of voice. It never gets committed. Every application pulls from it — so the more specific it is, the better every application gets.
+**profile.json** is private and lives only on your machine. It contains your career, case studies, philosophy, and tone of voice. Every application pulls from it — the more specific it is, the better every application gets.
 
-**content_brief.json** is the contract between brainstorm and code. The AI writes it; `generate.js` reads it. It specifies which works to show, what to say in each act, the template to use, and the design system direction.
+**content_brief.json** is the contract between brainstorm and codegen. The AI writes it; `generate.js` (or you, manually) reads it. It specifies which works to show, what to say in each act, which template to use, and design system direction.
 
-**Templates** control section order and layout behaviour. Three templates are included: `three-act` (default), `work-first` (leads with proof), and `single-statement` (minimal). The brainstorm agent recommends one based on the role.
+**Templates** control section order and layout. Three are included: `three-act` (default), `work-first` (leads with proof), `single-statement` (minimal). The brainstorm agent recommends one based on the role.
 
-**Design system** defaults to your own (`design-system/default.md`). For companies with a public DS, the page can adopt their visual language — colours, typography — as a signal that you understand their craft.
+**Design system** defaults to your own (`design-system/default.md`). For companies with a public design system, the page can adopt their visual language as a signal that you understand their craft.
 
-**generate.js** has two modes: `--run` assembles the page locally into `output/`; `--publish` deploys it to Vercel and returns a URL.
-
----
-
-## What FORA is not
-
-- A resume builder or CV formatter
-- A mass-application tool — every brief requires a focused brainstorm
-- A scraper or auto-submitter
-- A portfolio builder — it generates single-purpose pages, not permanent portfolio sites
+**generate.js** has two modes: `--run` assembles the page locally; `--publish` deploys to Vercel. Both are optional — see usage modes above.
 
 ---
 
 ## Privacy
 
-Your `profile.json`, `design-system/default.md`, and all files in `briefs/` and `output/` are gitignored. They live only on your machine. The public repo contains only the pipeline — prompts, templates, and scripts.
+Your `profile.json`, `design-system/default.md`, and all files in `briefs/` and `output/` are gitignored. They live only on your machine. The public repo contains only the pipeline.
 
 ---
 
 ## Getting started
 
-See [SETUP.md](SETUP.md) for a complete first-afternoon walkthrough.
+See [SETUP.md](SETUP.md) for the complete first-afternoon walkthrough.
