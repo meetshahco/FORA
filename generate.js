@@ -198,6 +198,52 @@ function dsLoader(brief) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// MEDIA RESOLVER
+// Resolves a media object from a brief work entry into something codegen can use.
+// MVP strategy: base64-encode local files so the page is self-contained.
+// Future Option B: copy files to output/[slug]/assets/ and return a relative URL.
+// To switch strategies later, only this function needs to change.
+// ════════════════════════════════════════════════════════════════════════════
+function resolveMedia(media) {
+  if (!media || media.type === null) return null;
+
+  // Remote embeds (loom, youtube, figma) — nothing to resolve, URL is already in the brief
+  if (['loom', 'youtube', 'figma'].includes(media.type)) {
+    return media;
+  }
+
+  // Local image — resolve to base64 data URI
+  if (media.type === 'image' && media.file) {
+    const filePath = path.resolve(__dirname, media.file);
+    if (!fs.existsSync(filePath)) {
+      warn(`Media file not found: ${media.file} — skipping.`);
+      return null;
+    }
+
+    const ext      = path.extname(media.file).toLowerCase().replace('.', '');
+    const mimeMap  = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif' };
+    const mimeType = mimeMap[ext];
+    if (!mimeType) {
+      warn(`Unsupported image format: ${ext} — skipping. Use jpeg, png, or gif.`);
+      return null;
+    }
+
+    const fileSizeKB = fs.statSync(filePath).size / 1024;
+    if (fileSizeKB > 2048) {
+      warn(`Media file ${media.file} is ${Math.round(fileSizeKB)}KB — over 2MB. Consider using a Loom link instead.`);
+    }
+
+    const base64 = fs.readFileSync(filePath).toString('base64');
+    return {
+      ...media,
+      file: `data:${mimeType};base64,${base64}`,  // codegen uses media.file as the img src
+    };
+  }
+
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // MODULE 4 — CODEGEN
 // Calls AI per section. Returns filled HTML string.
 // ════════════════════════════════════════════════════════════════════════════
@@ -269,12 +315,18 @@ function buildSectionBrief(sectionId, brief, profile, plan) {
         signals_position:       plan.section_config?.act1_hero?.signals_position ?? 'below_philosophy',
       };
 
-    case 'act2_work':
+    case 'act2_work': {
+      // Resolve media for each work entry before passing to codegen
+      const works = (brief.act2_what_ive_done?.works || []).map(work => ({
+        ...work,
+        media: resolveMedia(work.media),
+      }));
       return {
         ...base,
-        act2:             brief.act2_what_ive_done,
-        max_works:        plan.section_config?.act2_work?.max_works ?? 3,
+        act2: { ...brief.act2_what_ive_done, works },
+        max_works: plan.section_config?.act2_work?.max_works ?? 3,
       };
+    }
 
     case 'act3_bring':
       return {

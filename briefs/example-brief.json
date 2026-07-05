@@ -47,7 +47,14 @@
         "decision_to_surface": "Chose token-first architecture over component-first so eng could adopt incrementally without a rewrite.",
         "outcome_to_surface": "Reduced design-to-dev handoff time by 60% within 3 months. Team shipped 2x faster in Q3.",
         "section_format": "case_study_link",
-        "nda_note": null
+        "nda_note": null,
+        "media": {
+          "type": "image",
+          "file": "assets/design-system-tokens.png",
+          "url": null,
+          "alt": "Token architecture diagram showing the three-tier system",
+          "caption": "The token architecture — global → semantic → component. This is what made incremental eng adoption possible."
+        }
       },
       {
         "order": 2,
@@ -57,7 +64,14 @@
         "decision_to_surface": "Removed the 'aha moment' gate and let users reach value before asking for commitment.",
         "outcome_to_surface": "Activation rate doubled in 6 weeks. Became the model for onboarding across 3 other product areas.",
         "section_format": "signal_card",
-        "nda_note": null
+        "nda_note": null,
+        "media": {
+          "type": "loom",
+          "file": null,
+          "url": "https://loom.com/share/example-activation-walkthrough",
+          "alt": "Screen recording of the new activation flow",
+          "caption": "The flow before and after — the key change was removing the paywall gate at step 2."
+        }
       },
       {
         "order": 3,
@@ -67,7 +81,8 @@
         "decision_to_surface": "Structured the information architecture around the buyer's mental model, not the company's internal taxonomy.",
         "outcome_to_surface": "Product passed internal review and entered beta. Cannot share further detail.",
         "section_format": "timeline_entry",
-        "nda_note": "Reference as 'a B2B product design engagement in 2023'. Do not name the company or show visuals. Can describe the problem type (enterprise onboarding) and the decision made."
+        "nda_note": "Reference as 'a B2B product design engagement in 2023'. Do not name the company or show visuals. Can describe the problem type (enterprise onboarding) and the decision made.",
+        "media": null
       }
     ]
   },

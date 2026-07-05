@@ -93,6 +93,14 @@ Your output is **only the filled HTML**. Nothing else. No explanation, no markdo
   - `featured_project` → `.fora-work-card` with full treatment: title, framing_angle as intro, decision, outcome
 - If `nda_note` is present: use it as the framing constraint. Show only what nda_note allows.
 - Respect `max_works` from section_config. If brief has 3 works but max_works is 1, render only `works[0]`.
+- Media: after each work card body, check `media` on the work entry. If non-null, render a `<figure class="fora-work-media">` block using the rules below. If null, render nothing.
+
+**Media rendering rules:**
+- `type: image` → `<figure class="fora-work-media"><img src="{{file_or_datauri}}" alt="{{alt}}"><figcaption class="fora-work-media__caption">{{caption}}</figcaption></figure>`. generate.js will have already resolved the src to a data URI for local files or a URL for remote — use whatever value is in the brief.
+- `type: loom` → `<figure class="fora-work-media fora-work-media--embed"><div class="fora-embed-wrapper"><iframe src="https://www.loom.com/embed/{{id_extracted_from_url}}" frameborder="0" allowfullscreen></iframe></div><figcaption class="fora-work-media__caption">{{caption}}</figcaption></figure>`. Extract the Loom share ID from the URL (last path segment).
+- `type: youtube` → same iframe pattern using `https://www.youtube.com/embed/{{video_id}}`. Extract video ID from the URL.
+- `type: figma` → `<figure class="fora-work-media fora-work-media--embed"><div class="fora-embed-wrapper"><iframe src="https://www.figma.com/embed?embed_host=fora&url={{encoded_figma_url}}" allowfullscreen></iframe></div><figcaption class="fora-work-media__caption">{{caption}}</figcaption></figure>`.
+- Never render media if `nda_note` is present — skip the figure block entirely.
 
 **act3_bring:**
 - The three columns (day_15, day_30, day_90) render inside `.fora-day-grid`.

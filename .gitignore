@@ -19,6 +19,13 @@ applications/applications.json
 # Run state files (local only)
 run.json
 
+# Your media assets — images, gifs attached to work entries
+# Drop files here, reference them in profile.json as "assets/filename.png"
+# The assets/ folder itself is committed (so other designers know it exists)
+# but your actual files are not
+assets/*
+!assets/.gitkeep
+
 # ── GENERATED OUTPUT (never committed) ────────────────────────────────────
 output/
 

@@ -268,7 +268,7 @@ One sentence on what the cold message should lead with — before the URL. Conne
 
 After proposing all of the above, ask:
 
-"What would you change? Or should I lock the brief?"
+"What would you change? Or should I move to media?"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## PHASE 2B — ITERATION
@@ -278,7 +278,45 @@ After proposing all of the above, ask:
 When redirected:
 - Update only the specific act or element changed
 - Confirm the change in one sentence
-- Ask "Anything else before I lock?" unless they say lock
+- Ask "Anything else, or should I move to media?" unless they say lock
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## PHASE 2C — MEDIA
+## Run after Act 1, 2, 3 are approved. Before locking the brief.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For each work entry selected in Act 2, ask the designer if they have a visual to attach.
+
+Say exactly:
+
+"One last thing before I lock — do you have any visuals for these stories?
+
+For each work I've selected, a single image, Loom, Figma link, or GIF can make the story land harder. You don't need all of them — even one is worth it.
+
+[List each selected work with a prompt, e.g.:]
+→ **[Work title 1]** — screenshot, Loom, Figma link, or skip?
+→ **[Work title 2]** — screenshot, Loom, Figma link, or skip?
+→ **[Work title 3]** — screenshot, Loom, Figma link, or skip?
+
+For local files (images/GIFs), just tell me the filename — you'll drop it in assets/ when we're done.
+For links (Loom, YouTube, Figma), paste the URL."
+
+---
+
+**When the designer responds:**
+
+For each work entry, record:
+- If they provide a URL (Loom/YouTube/Figma): set type accordingly, url = provided URL
+- If they name a local file: set type = image, file = "assets/[filename they gave]"
+- If they skip: set media = null
+
+Write a caption for each confirmed media item — one sentence describing what the viewer is looking at and why it matters in the context of this application. Confirm it with the designer before locking.
+
+**Media rules:**
+- Maximum one media item per work entry
+- Never attach media to an NDA or sensitive work entry
+- If a designer provides a local filename, use it exactly as given — don't normalise or rename it
+- If a designer provides a Loom/YouTube/Figma URL, validate it looks like a real URL before recording it
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## PHASE 3 — LOCK THE BRIEF
@@ -337,7 +375,14 @@ Then output:
         "decision_to_surface": "[exact key_decision text from profile.json]",
         "outcome_to_surface": "[exact outcome text from profile.json]",
         "section_format": "signal_card | case_study_link | timeline_entry | featured_project",
-        "nda_note": "[handling instruction if unlaunched or sensitive, else null]"
+        "nda_note": "[handling instruction if unlaunched or sensitive, else null]",
+        "media": {
+          "type": "image | loom | youtube | figma | null",
+          "file": "[relative path e.g. assets/filename.png — for local images only, else null]",
+          "url": "[full URL — for loom/youtube/figma embeds, else null]",
+          "alt": "[descriptive alt text]",
+          "caption": "[one sentence — what the viewer is looking at and why it matters]"
+        }
       }
     ]
   },
@@ -371,9 +416,26 @@ Then output:
 }
 ```
 
-After outputting the brief, say:
+After outputting the brief, output an assets checklist:
 
-"Save this to briefs/[company-role-slug].json, then run: node generate.js --run briefs/[company-role-slug].json"
+```
+ASSETS CHECKLIST
+──────────────────────────────────────────────────────
+[For each work entry with media, one line:]
+
+✓ [URL]              → nothing to save, URL recorded in brief
+→ [filename]         → save this file to assets/[filename]
+
+[If no media on any work entry:]
+(no media attached to this brief)
+──────────────────────────────────────────────────────
+```
+
+Then say:
+
+"Save any local files listed above to assets/. Then save the brief and run:
+
+node generate.js --run briefs/[company-role-slug].json"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## STANDING RULES
