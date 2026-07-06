@@ -21,14 +21,23 @@ the repo, fill their profile, run the brainstorm, and have a live URL — in one
 
 | Artifact | Status |
 |---|---|
-| `profile.json` | Built |
-| `brainstorm-prompt.md` | Built |
-| `example-brief.json` | Built |
-| `default.md` | To build (MVP blocker) |
-| `templates/sections/*.html` | To build |
-| `templates/*.json` | To build |
-| `codegen-prompt.md` | To build |
-| `generate.js` | To build |
+| `profile/profile-template.json` | ✓ Built |
+| `profile/imports/` | ✓ Built |
+| `prompts/brainstorm-prompt.md` | ✓ Built (v2.1.0) |
+| `prompts/codegen-prompt.md` | ✓ Built |
+| `prompts/profile-builder-prompt.md` | ✓ Built |
+| `prompts/ds-builder-prompt.md` | ✓ Built |
+| `briefs/example-brief.json` | ✓ Built |
+| `design-system/default.md` | ✓ Built |
+| `templates/sections/*.html` | ✓ Built (8 files) |
+| `templates/*.json` | ✓ Built (3 templates) |
+| `generate.js` | ✓ Built |
+| `brainstorm.sh` | ✓ Built |
+| `.env.example` | ✓ Built |
+| `README.md` | ✓ Built |
+| `SETUP.md` | ✓ Built |
+| `package.json` | ✓ Built |
+| First real application end-to-end | ← next milestone |
 
 ---
 
@@ -37,158 +46,87 @@ the repo, fill their profile, run the brainstorm, and have a live URL — in one
 **Goal:** one designer, one JD, one deployed page, one cold message.
 **Success metric:** live URL from JD URL in under 15 minutes, unassisted.
 
-### What to build
+### What's built
 
-**1. `design-system/default.md`** ← build this first, it blocks everything else
+**`design-system/default.md`**
+Full token set — color, typography, spacing, borders, components, responsive rules,
+codegen instruction summary. Committed to the public repo (not sensitive data).
+Configurable via `prompts/ds-builder-prompt.md` — accepts portfolio URL, DS link,
+Figma tokens, CSS file, or plain description. Optional step, never a blocker.
 
-Your visual system written as LLM-consumable codegen instructions:
-- Color tokens (backgrounds, foregrounds, accents)
-- Typography (font families, sizes, weights, line heights)
-- Spacing scale
-- Border radius / component patterns
-- Tone rules (what the generated copy should feel like)
-- Component patterns (how cards, CTAs, grids should look)
+**`templates/sections/` — 8 files**
 
-Format: prose instructions + example CSS variables. Not a Figma handoff — written for an LLM to generate matching HTML from.
+Static (pre-built, never touched by codegen):
+- `nav.html` — top navigation bar with name + "For [Company]" badge
+- `footer.html` — minimal footer with portfolio, LinkedIn, email
 
----
+Slot-based (codegen fills `{{slot}}` placeholders):
+- `act1_hero.html` — positioning statement, philosophy note, signals
+- `act2_work.html` — 2–3 proof-of-work entries with media support
+- `act3_bring.html` — 15/30/90 day commitments
+- `signal_cards.html` — skills, working style, tools
+- `direct_cta.html` — call to action with contact link
 
-**2. `templates/sections/` — 8 files**
-
-Static (never touched by LLM):
-- `nav.html` — top navigation bar with name + links
-- `footer.html` — minimal footer
-- `whats_this.html` — one-paragraph explanation of FORA on every page
-
-Slot-based (codegen fills the `{{slot}}` placeholders):
-- `act1_hero.html` — opening positioning statement + headline
-- `act2_work.html` — 2–3 proof-of-work case studies
-- `act3_bring.html` — 15/30/90 day commitments for this specific role
-- `signal_cards.html` — 3–4 signal cards (skills, indicators, context)
-- `direct_cta.html` — one clear call-to-action with contact link
-
----
-
-**3. `templates/*.json` — 3 template definitions**
-
-Each file defines section order and which brief fields map to which slots.
-
+**`templates/*.json` — 3 template definitions**
 - `three-act.json` — default: hero → work → bring → signals → cta
 - `work-first.json` — leads with proof of work, hero second
 - `single-statement.json` — minimal: one strong statement + one case study + cta
 
----
+**`generate.js`** — the pipeline, two modes
 
-**4. `prompts/codegen-prompt.md`**
-
-System prompt for the codegen call. Receives:
-- `execution_plan` (in-memory, not persisted)
-- DS tokens from `default.md`
-- Section spec (slot definitions)
-
-Outputs clean, self-contained HTML block per dynamic section.
-Called once per dynamic section by `generate.js`.
-
----
-
-**5. `generate.js`** — the only script, two modes
-
-**`--run briefs/[slug].json`**
+`--run briefs/[slug].json`
 ```
-read brief
-→ load default.md (or fetch company DS if brief.design_system === "company")
-→ build execution plan in memory
-→ call codegen for each dynamic section
-→ assemble full HTML (static + dynamic sections)
-→ write output/[slug]/current.html
-→ deploy to Vercel preview
-→ start file watcher (redeploy on save)
+read brief → load default.md (or fetch company DS) → call Anthropic API per section
+→ assemble full HTML → write output/[slug]/index.html
 ```
 
-**`--publish`**
+`--publish briefs/[slug].json`
 ```
-promote current.html to live Vercel URL
-→ append record to applications/applications.json
-→ generate cold message (one LLM call)
-→ print live URL + cold message
-→ stop watcher
+--run + deploy to Vercel → return live URL
 ```
 
-What to deliberately NOT build in MVP:
-- `run.json` (state persistence — rerun if it fails)
-- `execution_plan.json` (keep it in memory)
-- confidence scorer (you know which roles to apply to)
-- opportunity model as a separate artifact (brainstorm does this inline)
-- story performance tracking (seed the fields, don't read them yet)
+Media support: base64-encodes local images (jpeg/png/gif), embeds Loom/YouTube/Figma
+via iframe. resolveMedia() is Option A — swap to CDN upload (Option B) without touching
+anything else.
 
----
+**`brainstorm.sh`**
+Fetches JD via curl, assembles prompt + profile.json + JD text, copies to clipboard.
+Cross-platform (pbcopy / xclip / xsel). One command → paste into any AI chat.
 
-**6. `.env.example` + rough `README.md`**
+**`prompts/brainstorm-prompt.md` (v2.1.0)**
+Phase 1: JD analysis + Opportunity Model (auto-runs).
+Phase 2: narrative brainstorm — Act 1 emphasis, Act 2 works, Act 3 commitments, DS direction, template.
+Phase 2B: iteration without regenerating the full proposal.
+Phase 2C: media collection per work entry — URL or local filename, caption written and confirmed.
+Phase 3: locks content_brief.json + outputs assets checklist.
 
-README covers: clone → fill profile → run brainstorm → run generate → get URL.
-Ten steps max. Polish in V1.
+**`prompts/profile-builder-prompt.md`**
+4-phase AI-assisted profile builder. Accepts resume, LinkedIn export, case study notes,
+anything. Drafts full profile.json, walks designer through review section by section.
+One-time setup, update incrementally as work grows.
 
----
-
-### MVP file tree (what gets committed)
-
-```
-FORA/
-├── .env.example
-├── .gitignore
-├── generate.js
-├── brainstorm.sh
-├── DEVPLAN.md
-├── README.md (rough)
-│
-├── profile/
-│   ├── profile.json           ← yours, already built
-│   ├── profile-template.json  ← blank + instructions (V1)
-│   └── imports/               ← drop resume, LinkedIn, decks here
-│
-├── prompts/
-│   ├── brainstorm-prompt.md   ← already built
-│   └── codegen-prompt.md      ← build in MVP
-│
-├── design-system/
-│   └── default.md             ← build first — MVP blocker
-│
-├── templates/
-│   ├── sections/
-│   │   ├── nav.html
-│   │   ├── footer.html
-│   │   ├── whats_this.html
-│   │   ├── act1_hero.html
-│   │   ├── act2_work.html
-│   │   ├── act3_bring.html
-│   │   ├── signal_cards.html
-│   │   └── direct_cta.html
-│   ├── three-act.json
-│   ├── work-first.json
-│   └── single-statement.json
-│
-├── briefs/
-│   └── example-brief.json     ← already built
-│
-└── applications/
-    └── applications.json      ← auto-written, grows with every deploy
-```
-
----
+**`prompts/ds-builder-prompt.md`**
+Optional. Configures design-system/default.md to match designer's personal brand.
+Accepts portfolio URL, DS/Storybook link, Figma tokens, CSS file, or plain description.
+Outputs complete configured default.md with "what changed" summary.
 
 ### MVP milestone checklist
 
-- [ ] `default.md` written and tested with a manual codegen call
-- [ ] All 8 section HTML files built
-- [ ] All 3 template JSONs built
-- [ ] `codegen-prompt.md` written
+- [x] `default.md` written with full token set and codegen instructions
+- [x] All 8 section HTML files built
+- [x] All 3 template JSONs built
+- [x] `codegen-prompt.md` written with media rendering rules
+- [x] `generate.js` built — `--run` and `--publish` modes
+- [x] `brainstorm.sh` built and tested
+- [x] `profile-builder-prompt.md` written
+- [x] `ds-builder-prompt.md` written
+- [x] `README.md` and `SETUP.md` written
+- [ ] First real `profile.json` built from actual career materials
+- [ ] First real brainstorm run against a live JD
 - [ ] `generate.js --run` produces a valid HTML page locally
-- [ ] `generate.js --run` deploys to Vercel preview
-- [ ] File watcher redeploys on save
 - [ ] `generate.js --publish` produces a live URL
-- [ ] `generate.js --publish` logs to `applications.json`
-- [ ] Cold message printed in terminal
-- [ ] End-to-end run from JD URL to live page in under 15 minutes
+- [ ] README updated with screenshot of real output
+- [ ] End-to-end run from JD URL to live page documented
 
 ---
 
@@ -199,52 +137,44 @@ FORA/
 
 ### What V1 adds (MVP carries forward unchanged)
 
-**`prompts/profile-builder-prompt.md`**
-Drop resume + LinkedIn export + case study decks into `profile/imports/`.
-Run this prompt in any AI. `profile.json` generated in ~20 minutes.
-Reduces onboarding from 2 hours (manual) to 20 minutes.
-
-**`profile/profile-template.json`**
-Blank `profile.json` with field-by-field inline instructions.
-For designers who prefer manual entry over the import prompt.
-
-**`templates/work-first.json`** (if not shipped in MVP)
-Third template option — leads with proof of work rather than positioning.
-
-**`design-system/user.css`** (documented, gitignored)
-Designer-specific CSS override layer. Loaded on top of the generated DS tokens.
-Never committed — personal to each FORA installation.
+**`applications/applications.json`** schema + tracking
+Local log of every brief run and every page deployed. Grows with every application.
+Seed the schema now, read it in V1. Commit the structure (personal data gitignored).
 
 **`generate.js` updates**
 - PostHog snippet injected into every deployed page
-- `output/` versioning — each save creates `v1.html`, `v2.html`, etc.
-- `user.css` loaded as DS override layer after codegen
+- Output versioning — each save creates `v1.html`, `v2.html`, etc.
+- `design-system/user.css` loaded as override layer after codegen
 
-**`README.md`** — full version
-Setup in under 10 steps. Two commands. Written for a designer, not a developer.
-Covers: setup, profile building (manual + import), brainstorm, generate, publish, tweak.
+**`brainstorm.sh` → interactive CLI**
+Currently: assembles prompt + copies to clipboard.
+V1: interactive session — media files dragged in during the chat get auto-saved to `assets/`,
+brief gets auto-saved to `briefs/`. The "dream flow" — no manual file management.
 
-**`templates/README.md`**
-Documents how to build a custom template. Non-developers should be able to follow it.
+**`CLAUDE.md`** — repo context file for AI tools (Cursor, Copilot, etc.)
 
-**`brainstorm.sh` / `brainstorm.ps1`** (if not in MVP)
-Shell script that fetches the JD, assembles the full prompt + profile.json + JD text,
-and copies it to clipboard. One command → ready to paste into any AI chat.
+**`CONTRIBUTING.md`** — for the open-source community
 
----
+**Tagline update**
+"Turn a job description into a personalised application landing page" → something closer to
+what FORA actually is: a career intelligence tool for designers who apply intentionally.
+
+**`README.md`** — add screenshot / live example
+The single biggest friction point for open-source traction. Add after first real deployment.
 
 ### V1 milestone checklist
 
-- [ ] `profile-builder-prompt.md` tested — produces valid `profile.json` from real import files
-- [ ] `profile-template.json` complete with inline instructions for every field
+- [ ] First external user deploys successfully unassisted
+- [ ] `applications.json` schema committed, tracking wired into `--publish`
 - [ ] PostHog injected and tracking page views per application
-- [ ] Output versioning working (`v1.html`, `v2.html`, ...)
-- [ ] `user.css` override documented and gitignored
-- [ ] `README.md` tested — someone unfamiliar with FORA reads it and deploys without help
-- [ ] `templates/README.md` written
-- [ ] `brainstorm.sh` tested on Mac + Linux
-- [ ] `brainstorm.ps1` tested on Windows (or documented as community contribution)
-- [ ] Repo polished and ready for public GitHub push
+- [ ] Output versioning working
+- [ ] `brainstorm.sh` upgraded to interactive CLI with auto file management
+- [ ] `CLAUDE.md` written
+- [ ] `CONTRIBUTING.md` written
+- [ ] README screenshot added from real deployment
+- [ ] Tagline updated
+- [ ] `brainstorm.ps1` for Windows (or documented as community contribution)
+- [ ] Repo polished and ready for public promotion
 - [ ] Content launch: post, thread, or blog linking to repo
 
 ---
@@ -255,24 +185,24 @@ V2 introduces the agent layer: crawler, confidence scorer, company intelligence,
 and the orchestrator that connects them. None of this is needed to prove the product works.
 V2 is earned after V1 has real users producing real applications.
 
-Full V2 and V3 spec: see `applyOS_v5_responsive.html` (architecture reference).
-
 ---
 
-## Build order
+## Build order (completed for MVP, V1 next)
 
 ```
-default.md              ← start here
+default.md              ✓
     ↓
-section HTML files      ← 8 files, build static first
+section HTML files      ✓ (8 files)
     ↓
-template JSONs          ← 3 files, 30 minutes
+template JSONs          ✓ (3 files)
     ↓
-codegen-prompt.md       ← write once, test with a manual API call
+codegen-prompt.md       ✓
     ↓
-generate.js             ← wire it all together
+generate.js             ✓
     ↓
-first real application  ← run the pipeline end to end
+first real application  ← here now
     ↓
-README.md               ← write after you've done it once yourself
+README screenshot       ← after first deploy
+    ↓
+V1 features             ← after first external user
 ```
