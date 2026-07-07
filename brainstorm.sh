@@ -70,15 +70,18 @@ paste_from_clipboard() {
 # Avoids job ID numbers and path noise like /openings/7762220003
 derive_slug() {
   local url="$1"
-  echo "$url" \
-    | sed 's|https\?://||' \
-    | sed 's|www\.||' \
-    | awk -F'/' '{print $1}' \
-    | awk -F'.' '{print $(NF-1)}' \
-    | sed 's/[^a-zA-Z0-9-]/-/g' \
-    | sed 's/--*/-/g' \
-    | sed 's/^-//;s/-$//' \
-    | tr '[:upper:]' '[:lower:]'
+  # Strip protocol explicitly for macOS sed compatibility
+  url="${url#http://}"
+  url="${url#https://}"
+  url="${url#www.}"
+  # Extract domain only (first segment before first /)
+  local domain="${url%%/*}"
+  # Extract company name (second-to-last dot segment, e.g. "remote" from "remote.com")
+  local slug
+  slug=$(echo "$domain" | awk -F'.' '{if(NF>=2) print $(NF-1); else print $1}')
+  # Sanitise
+  slug=$(echo "$slug" | sed 's/[^a-zA-Z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | tr '[:upper:]' '[:lower:]')
+  echo "$slug"
 }
 
 # ── Fetch JD text from URL ───────────────────────────────────────────────────
