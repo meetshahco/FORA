@@ -39,44 +39,29 @@ Before you start, here's the mental model. Three pieces, no magic connections be
 FORA works in three modes. You don't need an API key to get a real output.
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│  MODE 1 — Fully manual              FREE, zero API keys              │
-│                                                                      │
-│  brainstorm.sh → paste into AI chat → save brief                     │
-│  paste codegen-prompt.md + brief into AI chat → copy HTML manually   │
-│  drag output folder to Netlify drop → live URL                       │
-│                                                                      │
-│  Best for: trying FORA for the first time, no API keys yet           │
-├──────────────────────────────────────────────────────────────────────┤
-│  MODE 2A — Automated codegen        Needs: Anthropic API key         │
-│                                                                      │
-│  brainstorm.sh → paste into AI chat → save brief                     │
-│  node generate.js --run brief.json → HTML written automatically      │
-│  drag output folder to Netlify drop → live URL                       │
-│                                                                      │
-│  Best for: regular use, no Vercel account                            │
-├──────────────────────────────────────────────────────────────────────┤
-│  MODE 2B — Manual codegen + auto deploy   Needs: Vercel only ★       │
-│                                                                      │
-│  brainstorm.sh → paste into AI chat → save brief                     │
-│  paste codegen-prompt.md + brief into AI chat → save HTML manually   │
-│  node generate.js --deploy brief.json → live URL returned            │
-│                                                                      │
-│  Best for: designers who prefer AI chat for generation but want      │
-│  a permanent URL without drag-and-drop. Zero Anthropic cost.         │
-├──────────────────────────────────────────────────────────────────────┤
-│  MODE 3 — Fully automated           Needs: Anthropic + Vercel        │
-│                                                                      │
-│  node generate.js --publish brief.json → live URL returned           │
-│                                                                      │
-│  Best for: sending the URL in a cold message the same day            │
-└──────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  1  Manual codegen via AI chat + Manual deploy via any static host          │
+│     Free — no API keys needed                                               │
+│     Best for: first run, no keys yet                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  2  Manual codegen via AI chat + Auto deploy via Vercel          ★          │
+│     Needs: Vercel token only                                                │
+│     Best for: permanent URL with zero Anthropic cost                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  3  Auto codegen via Anthropic API + Manual deploy via any static host      │
+│     Needs: Anthropic API key only                                           │
+│     Best for: fast generation, deploy wherever you prefer                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  4  Auto codegen via Anthropic API + Auto deploy via Vercel                 │
+│     Needs: Anthropic + Vercel                                               │
+│     Best for: fully automated — URL ready to send the same day              │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-★ Mode 2B is the most practical starting point — automated deploy with zero API cost.
-  Anthropic and Vercel keys are independent. You only need what your mode requires.
+★ Option 2 is the most practical starting point — permanent URL, zero API cost.
+  Anthropic and Vercel are fully independent. You only need what your option requires.
 ```
 
-Steps 1–5 are the same for all modes. Steps 6–7 diverge based on mode.
+You choose your option **per application** when you run `./run.sh` — not once during setup. If you have no keys, option 1 is always available. As you add keys, more options unlock automatically.
 
 ---
 
@@ -145,7 +130,7 @@ git clone https://github.com/yourhandle/FORA.git
 Then run these fixed commands exactly as written:
 ```bash
 cd FORA
-chmod +x setup.sh brainstorm.sh run.sh
+chmod +x setup.sh brainstorm.sh codegen.sh run.sh
 ./setup.sh
 ```
 
@@ -338,7 +323,7 @@ Brief files are gitignored — they won't be committed.
 
 **Mode 2A + 3 — Automated codegen (Anthropic API key required):**
 
-In your terminal — replace `[company]` with the filename brainstorm.sh gave you:
+In your terminal — replace `[company]` with the brief filename brainstorm.sh gave you:
 ```bash
 node generate.js --run briefs/[company].json
 ```
@@ -349,23 +334,19 @@ This calls the API, assembles your page, and writes it to `output/[company]/inde
 
 **Mode 1 + 2B — Manual codegen (no Anthropic key needed):**
 
-In your terminal — copy the codegen prompt:
+In your terminal:
 ```bash
-cat prompts/codegen-prompt.md | pbcopy
+./codegen.sh briefs/[company].json
 ```
 
-In your browser — open any AI chat, paste with ⌘V, then paste the contents of your brief JSON in the same message. The assistant generates the full page HTML.
+This copies the codegen prompt + your brief to your clipboard in one go. Then:
 
-When you have the HTML, back in your terminal — save it. Replace `[company]` with your brief filename:
-```bash
-mkdir -p output/[company]
-pbpaste > output/[company]/index.html
-```
+1. Open your AI chat and paste ⌘V
+2. The assistant generates the full page HTML
+3. Copy the HTML output
+4. Come back to the terminal and press Enter
 
-Preview your page:
-```bash
-open output/[company]/index.html
-```
+The script saves the HTML automatically — no file naming, no folder creation.
 
 ---
 
@@ -374,7 +355,7 @@ open output/[company]/index.html
 ✓ output/[company]/index.html
 ```
 
-If something looks off, go back to the AI chat, ask it to fix the specific section, copy the updated HTML, and run `pbpaste > output/[company]/index.html` again to overwrite.
+If something looks off, run `./codegen.sh briefs/[company].json` again — it'll ask if you want to regenerate.
 
 ---
 

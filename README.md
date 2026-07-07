@@ -13,24 +13,16 @@ No generic applications. No templates that look like templates.
 ```bash
 git clone https://github.com/meetshahco/FORA.git
 cd FORA
+chmod +x setup.sh brainstorm.sh codegen.sh run.sh
 
-# Step 1 — build your profile (once)
-# Open any AI chat, paste prompts/profile-builder-prompt.md, share your resume
-# Save the output to profile/profile.json
+# Step 1 — health check and profile build (once)
+./setup.sh
 
-# Step 2 — run a brainstorm (per application)
-./brainstorm.sh https://company.com/jobs/role
-# Paste clipboard into any AI chat → save the brief to briefs/[slug].json
-
-# Step 3 — generate your page
-node generate.js --run briefs/[slug].json
-open output/[slug]/index.html
-
-# Step 4 — deploy (optional, needs Vercel token in .env)
-node generate.js --deploy briefs/[slug].json    # deploy manually-generated HTML (no Anthropic needed)
-node generate.js --publish briefs/[slug].json   # generate + deploy in one command (needs Anthropic)
-# → https://fora-pages.vercel.app/[slug]
+# Step 2 — every application from here on
+./run.sh https://company.com/jobs/role
 ```
+
+`run.sh` handles everything — brainstorm, mode selection, generate, deploy — in one guided flow. No API keys needed to start.
 
 ---
 
@@ -50,23 +42,20 @@ Result: a URL you can send in a cold message
 
 ---
 
-## Usage modes
+## Usage options
 
-FORA is tool-agnostic and cost-optional. Anthropic and Vercel are independent — use only what your mode requires.
+FORA is tool-agnostic and cost-optional. You choose how to generate and deploy **per application** — not once during setup. Anthropic and Vercel are fully independent.
 
-**Mode 1 — Fully manual (zero cost, no API keys)**
-Run `brainstorm.sh` into any AI chat. Ask the same AI to generate HTML section by section using `codegen-prompt.md`. Deploy by dragging the folder to Netlify drop or any static host.
+| Option | Codegen | Deploy | Keys needed |
+|--------|---------|--------|-------------|
+| 1 | Manual codegen via AI chat | Manual deploy via any static host | None |
+| 2 ★ | Manual codegen via AI chat | Auto deploy via Vercel | Vercel token |
+| 3 | Auto codegen via Anthropic API | Manual deploy via any static host | Anthropic key |
+| 4 | Auto codegen via Anthropic API | Auto deploy via Vercel | Both |
 
-**Mode 2A — Automated codegen (Anthropic key only)**
-Same brainstorm flow, but `generate.js --run` handles HTML generation automatically. No Vercel needed — deploy manually after.
+★ Option 2 is the most practical starting point — permanent URL with zero Anthropic cost.
 
-**Mode 2B — Manual codegen + auto deploy (Vercel key only) ★**
-Generate HTML manually in an AI chat (no Anthropic cost), then run `generate.js --deploy` to get a live URL automatically. The most practical starting point — zero API cost with a permanent URL.
-
-**Mode 3 — Fully automated (Anthropic + Vercel)**
-`generate.js --publish` generates and deploys in one command.
-
-See `.env.example` for exactly which keys each mode needs.
+`run.sh` detects which keys you have and shows only what's available. Start with option 1, add keys when you're ready, and options unlock automatically — no reconfiguration needed.
 
 ---
 
@@ -76,22 +65,22 @@ See `.env.example` for exactly which keys each mode needs.
 JD URL
   │
   ▼
-brainstorm-prompt.md + profile.json
-  │   (paste into any AI chat)
+brainstorm.sh → copies prompt to clipboard → paste into AI chat
+  │
   ▼
-content_brief.json
+content_brief.json  (saved automatically)
   │
-  ├──→ generate.js --run       ← auto codegen    (Mode 2A + 3, needs Anthropic)
+  ├──→ Auto codegen via Anthropic API   (options 3 + 4 — needs Anthropic key)
   │         ↓
-  └──→ paste codegen-prompt.md manually          (Mode 1 + 2B, no API key needed)
+  └──→ Manual codegen via AI chat       (options 1 + 2 — no API key needed)
             ↓
-  assembled HTML page
+      assembled HTML page
             │
-  ├──→ generate.js --deploy    ← auto deploy     (Mode 2B + 3, needs Vercel)
+  ├──→ Auto deploy via Vercel           (options 2 + 4 — needs Vercel token)
+  │         ↓ live URL
   │
-  └──→ drag to Netlify / any static host         (Mode 1 + 2A, no Vercel needed)
-            ↓
-        live URL
+  └──→ Manual deploy via any static host (options 1 + 3 — no Vercel needed)
+            ↓ live URL
 ```
 
 ---
