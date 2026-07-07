@@ -30,6 +30,9 @@ step() { echo -e "\n${BOLD}${CYAN}[$1]${RESET} ${BOLD}$2${RESET}"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ── Ctrl+C exits cleanly ─────────────────────────────────────────────────────
+trap 'echo ""; echo "  Exited. Resume with: ./run.sh --brief [path]"; exit 0' INT
+
 JD_URL=""
 BRIEF_PATH=""
 SKIP_BRAINSTORM=false

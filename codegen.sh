@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # FORA — codegen.sh
-# Assembles the codegen prompt + your brief, copies to clipboard.
-# Waits for you to paste into AI chat, generate the HTML, then saves it automatically.
+# Assembles the human-facing codegen prompt + templates + DS tokens + brief,
+# copies everything to clipboard. Waits for you to generate HTML in AI chat,
+# then saves it automatically.
 #
 # Usage:
 #   ./codegen.sh briefs/[company].json
@@ -23,7 +24,12 @@ fail() { echo -e "${RED}✗${RESET} $1"; exit 1; }
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROMPT_FILE="$SCRIPT_DIR/prompts/codegen-prompt.md"
+PROMPT_FILE="$SCRIPT_DIR/prompts/codegen-chat-prompt.md"
+SECTIONS_DIR="$SCRIPT_DIR/templates/sections"
+DS_FILE="$SCRIPT_DIR/design-system/default.md"
+
+# ── Ctrl+C exits cleanly ─────────────────────────────────────────────────────
+trap 'echo ""; echo "  Exited. Run ./codegen.sh $* to continue later."; exit 0' INT
 
 # ── Copy to clipboard ────────────────────────────────────────────────────────
 copy_to_clipboard() {
@@ -103,11 +109,22 @@ main() {
   fi
 
   # Read files
-  local prompt brief
+  local prompt brief ds_tokens base_html
   prompt=$(cat "$PROMPT_FILE")
   brief=$(cat "$brief_path")
+  ds_tokens=$(cat "$DS_FILE" 2>/dev/null || echo "")
+  base_html=$(cat "$SECTIONS_DIR/_base.html" 2>/dev/null || echo "")
 
-  # Assemble
+  # Read section templates
+  local nav act1 act2 act3 cta footer_html
+  nav=$(cat "$SECTIONS_DIR/nav.html" 2>/dev/null || echo "")
+  act1=$(cat "$SECTIONS_DIR/act1_hero.html" 2>/dev/null || echo "")
+  act2=$(cat "$SECTIONS_DIR/act2_work.html" 2>/dev/null || echo "")
+  act3=$(cat "$SECTIONS_DIR/act3_bring.html" 2>/dev/null || echo "")
+  cta=$(cat "$SECTIONS_DIR/direct_cta.html" 2>/dev/null || echo "")
+  footer_html=$(cat "$SECTIONS_DIR/footer.html" 2>/dev/null || echo "")
+
+  # Assemble everything into one paste
   local assembled
   assembled="$(cat <<ASSEMBLED
 $prompt
@@ -119,6 +136,40 @@ $prompt
 \`\`\`json
 $brief
 \`\`\`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## DESIGN SYSTEM TOKENS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+$ds_tokens
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## BASE HTML (inject into <head>)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+$base_html
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION TEMPLATES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### nav.html
+$nav
+
+### act1_hero.html
+$act1
+
+### act2_work.html
+$act2
+
+### act3_bring.html
+$act3
+
+### direct_cta.html
+$cta
+
+### footer.html
+$footer_html
 ASSEMBLED
 )"
 

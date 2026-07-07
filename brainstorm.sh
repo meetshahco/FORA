@@ -28,6 +28,9 @@ PROMPT_FILE="$SCRIPT_DIR/prompts/brainstorm-prompt.md"
 PROFILE_FILE="$SCRIPT_DIR/profile/profile.json"
 BRIEFS_DIR="$SCRIPT_DIR/briefs"
 
+# ── Ctrl+C exits cleanly ─────────────────────────────────────────────────────
+trap 'echo ""; echo "  Exited. Run ./brainstorm.sh to start again."; exit 0' INT
+
 # ── Check dependencies ───────────────────────────────────────────────────────
 check_deps() {
   local missing=()
