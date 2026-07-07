@@ -303,6 +303,8 @@ When the agent gives you the final JSON, **copy just the JSON block** (starting 
 
 No filename to decide. No file to create manually. The name is derived from the company domain in the URL you provided.
 
+> **Need to exit at any point?** Press `Ctrl+C` — the script exits cleanly and tells you the exact command to resume.
+
 If the agent also gives you an assets checklist (local files like screenshots), copy them into the assets folder:
 ```bash
 cp ~/Desktop/your-screenshot.png assets/
@@ -348,6 +350,8 @@ This copies the codegen prompt + your brief to your clipboard in one go. Then:
 
 The script saves the HTML automatically — no file naming, no folder creation.
 
+> **Need to exit?** Press `Ctrl+C` — the script exits cleanly with the command to resume.
+
 ---
 
 **You should now have:**
@@ -360,38 +364,28 @@ If something looks off, run `./codegen.sh briefs/[company].json` again — it'll
 ---
 
 ## Step 7 — Deploy
-*~2 min — Mode 2B + 3 only*
+*~2 min*
 
-**Mode 2B — Manual codegen + auto deploy (Vercel, no Anthropic key):**
+If you used `./run.sh`, deploy is handled at the end of the flow automatically based on your option choice. If you're running manually:
 
-You've already generated `output/acme-senior-designer/index.html` manually in Step 6.
-Now deploy it with one command:
+**Auto deploy via Vercel (options 2 + 4):**
 
-`[Terminal]`
+In your terminal — replace `[company]` with your brief filename:
 ```bash
-node generate.js --deploy briefs/acme-senior-designer.json
+node generate.js --deploy briefs/[company].json
 ```
 
-Returns a live URL: `https://fora-pages.vercel.app/acme-senior-designer`
+Returns a live URL: `https://fora-pages.vercel.app/[company]`
 
-**Mode 3 — Fully automated (Anthropic + Vercel):**
-
-`[Terminal]`
-```bash
-node generate.js --publish briefs/acme-senior-designer.json
-```
-
-Generates the page and deploys in one command.
-
-**Both modes:** Your Vercel project must exist before the first deploy — `[Browser]` create it once at [vercel.com/new](https://vercel.com/new) (empty project, no framework, no git connection needed).
+Your Vercel project must exist before the first deploy — create it once at [vercel.com/new](https://vercel.com/new) (empty project, no framework, no git connection needed).
 
 ---
 
-**No Vercel? Use Netlify drop instead (Mode 1 + 2A):**
+**Manual deploy via any static host (options 1 + 3):**
 
-`[Browser]` Go to [app.netlify.com/drop](https://app.netlify.com/drop), drag your `output/acme-senior-designer/` folder in. Done — free, no account needed.
+Drag your `output/[company]/` folder to [app.netlify.com/drop](https://app.netlify.com/drop) — free, no account needed.
 
-The output is a single self-contained `index.html`. It works on any static host: GitHub Pages, Cloudflare Pages, S3 — anything.
+Or use GitHub Pages, Cloudflare Pages, S3, or any static host. The output is a single self-contained `index.html` that works anywhere.
 
 **You should now have:**
 ```
@@ -412,71 +406,78 @@ Or `[Editor]` edit `profile/profile.json` directly — the schema has inline ins
 
 **Update your design system** — when you rebrand or want a different visual feel:
 
-`[Browser]` Open a new AI chat. Paste `prompts/ds-builder-prompt.md`. Share your portfolio URL, a DS file, or just describe your aesthetic. The AI outputs a configured `design-system/default.md`. Save it.
-
-Or `[Editor]` edit `design-system/default.md` directly — all tokens are in the `TOKEN BLOCK` section at the top.
-
----
-
-**Switch mode** — if you get an API key or want to change your setup:
-
-`[Terminal]`
+In your terminal:
 ```bash
-./setup.sh
+cat prompts/ds-builder-prompt.md | pbcopy
+```
+Open any AI chat, paste, and share your portfolio URL, DS file, or describe your aesthetic. The AI outputs a configured `design-system/default.md`. Copy the output and save it:
+```bash
+pbpaste > design-system/default.md
 ```
 
-Select "switch mode" when prompted. Your `.env` is rewritten.
+Or open `design-system/default.md` directly in any text editor — all tokens are in the `TOKEN BLOCK` section at the top.
 
 ---
 
-**Health check** — if something stops working:
+**Add or switch API keys** — if you want to unlock a new option:
 
-`[Terminal]`
+Open `.env` in any text editor and add your key. Then verify:
 ```bash
 ./setup.sh --check
 ```
 
-Runs all five checks silently, reports exactly what's missing.
+The next time you run `./run.sh`, the new option will show as available automatically.
 
 ---
 
-**Re-run an existing application** — if you want to tweak the brief and regenerate:
-
-`[Editor]` Edit `briefs/[slug].json` directly.
-
-`[Terminal]`
+**Health check** — if something stops working:
 ```bash
-./run.sh --brief briefs/[slug].json
+./setup.sh --check
 ```
 
-Skips the brainstorm, goes straight to generate and deploy.
+Runs all checks silently and reports exactly what's missing.
+
+---
+
+**Re-run an existing application** — tweak the brief and regenerate:
+```bash
+./run.sh --brief briefs/[company].json
+```
+
+Skips the brainstorm, goes straight to mode selection → generate → deploy.
 
 ---
 
 ## What's next
 
-**Apply again.** `[Terminal]` Run `./run.sh` with a new JD URL — it handles brainstorm, generate, and deploy in one guided flow. Your profile stays — each application takes 15–20 minutes once you're set up.
+**Apply again.** Run `./run.sh` with a new JD URL — brainstorm, generate, and deploy in one guided flow. Each application takes 15–20 minutes once you're set up.
 
-**Update your profile.** When you ship new work, `[Editor]` open `profile/profile.json` and update the relevant entry. Or `[Browser]` re-run `profile-builder-prompt.md` with your current profile + what changed — the assistant handles the merge.
+**Update your profile.** When you ship new work, run:
+```bash
+cat prompts/profile-builder-prompt.md | pbcopy
+```
+Paste into AI chat with your current `profile.json` + what changed. Copy the updated JSON and save:
+```bash
+pbpaste > profile/profile.json
+```
 
-**Customise your design system.** `[Editor]` Edit `design-system/default.md` to adjust colours, typography, or spacing. Changes apply to every page you generate from that point.
+**Customise your design system.** Open `design-system/default.md` in any text editor and adjust colours, typography, or spacing. Changes apply to every page you generate from that point.
 
-**Track your applications.** Application history tracking is coming in V1 — a local `applications/applications.json` that logs every brief you've run, every page you've deployed, and every response. The system gets richer with every application.
+**Track your applications.** Application history tracking is coming in V1 — a local `applications/applications.json` that logs every brief you've run, every page you've deployed, and every response.
 
 ---
 
 ## Troubleshooting
 
-**`brainstorm.sh` says permission denied**
-
-`[Terminal]`
+**Scripts say permission denied**
 ```bash
-chmod +x brainstorm.sh
+./setup.sh
 ```
+Running setup.sh automatically fixes permissions on all scripts.
 
 **generate.js fails with API error**
 
-`[Editor]` Check your `ANTHROPIC_API_KEY` in `.env`. Make sure there are no extra spaces or quotes.
+Check your `ANTHROPIC_API_KEY` in `.env`. Make sure there are no extra spaces or quotes.
 
 **Vercel deploy fails**
 
