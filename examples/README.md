@@ -54,12 +54,6 @@ open output/meridian-head-of-design/index.html
 
 This lets you verify your setup works before building your own profile.
 
-**Use Alex's profile as a template:**
-
-Open `examples/alex-rivera/profile.json` and replace the content with your own.
-Save it to `profile/profile.json`. It's faster than starting from `profile-template.json`
-because you can see exactly what filled-in values look like.
-
 ---
 
 ## What this is not
