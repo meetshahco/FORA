@@ -137,7 +137,7 @@ save_brief() {
     echo "  2) Save as a new version (briefs/${slug}-v2.json)"
     echo "  3) Keep the existing brief and exit"
     echo ""
-    read -rp "  Enter 1, 2, or 3: " choice
+    read -r choice < /dev/tty
     case "$choice" in
       1)
         info "Will overwrite briefs/${slug}.json"
@@ -177,7 +177,8 @@ save_brief() {
   echo -e "  ${BOLD}2. Come back here and press Enter${RESET}"
   echo ""
   # Wait for user — read from /dev/tty directly so stdin is not affected by paste
-  echo -n "  Press Enter when you have the JSON copied... "
+  echo -e "  Press Enter when you have the JSON copied..."
+  echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
   read -r < /dev/tty
 
   # Read from clipboard (never from stdin — avoids JSON dumping into terminal)
@@ -217,7 +218,9 @@ save_brief() {
     echo "  Make sure you copied only the JSON block (starting with { and ending with })"
     echo "  not the surrounding text or assets checklist."
     echo ""
-    read -rp "  Copy the JSON block and press Enter to try again (or Ctrl+C to exit): "
+    echo -e "  Copy the JSON block and press Enter to try again..."
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r < /dev/tty
     content=$(paste_from_clipboard 2>/dev/null || true)
     echo "$content" | node -e "
       process.stdin.resume();
@@ -252,7 +255,7 @@ main() {
   local jd_url="${1:-}"
   if [[ -z "$jd_url" ]]; then
     echo ""
-    read -rp "Job description URL: " jd_url
+    read -r jd_url < /dev/tty
     echo ""
   fi
 
@@ -331,23 +334,16 @@ ASSEMBLED
   # Save the brief
   save_brief "$slug"
 
-  # Print next step based on .env mode
-  local env_file="$SCRIPT_DIR/.env"
-  local has_anthropic=false
-  local has_vercel=false
-
-  if [[ -f "$env_file" ]]; then
-    grep -q "^ANTHROPIC_API_KEY=.\+" "$env_file" 2>/dev/null && has_anthropic=true
-    grep -q "^VERCEL_TOKEN=.\+" "$env_file" 2>/dev/null && has_vercel=true
+  # Only offer to continue if running standalone (not called from run.sh)
+  if [[ "${FORA_CALLED_FROM_RUN:-}" != "true" ]]; then
+    echo -e "  Ready to generate your page."
+    echo -e "  Press Enter to continue to generate + deploy..."
+    echo -e "  ${DIM}(Ctrl+C to stop here — resume later with: ./run.sh --brief briefs/${slug}.json)${RESET}"
+    echo ""
+    read -r < /dev/tty
+    echo ""
+    exec "$SCRIPT_DIR/run.sh" --brief "$SCRIPT_DIR/briefs/${slug}.json"
   fi
-
-  echo -e "${BOLD}Next step:${RESET}"
-  echo ""
-  echo -e "  ${BOLD}./run.sh --brief briefs/${slug}.json${RESET}"
-  echo -e "  ${DIM}(skips brainstorm, goes straight to generate + deploy)${RESET}"
-  echo ""
-  echo -e "  Or run the full flow again: ${BOLD}./run.sh${RESET}"
-  echo ""
 }
 
 main "$@"

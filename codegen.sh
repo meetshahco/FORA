@@ -67,7 +67,7 @@ main() {
     echo "  Available briefs:"
     ls "$SCRIPT_DIR/briefs/"*.json 2>/dev/null | xargs -I{} basename {} .json | sed 's/^/    /' || echo "    (none yet)"
     echo ""
-    read -rp "  Brief filename (e.g. remote): " brief_name
+    read -r brief_name < /dev/tty
     brief_name="${brief_name#briefs/}"
     brief_name="${brief_name%.json}"
     brief_path="$SCRIPT_DIR/briefs/${brief_name}.json"
@@ -95,7 +95,7 @@ main() {
     echo "  1) Regenerate (overwrite existing)"
     echo "  2) Keep existing and exit"
     echo ""
-    read -rp "  Enter 1 or 2: " choice
+    read -r choice < /dev/tty
     case "$choice" in
       2)
         echo ""
@@ -191,7 +191,8 @@ ASSEMBLED
   echo ""
 
   # Wait for user — read from /dev/tty directly so stdin is not affected by paste
-  echo -n "  Press Enter when you have the HTML copied... "
+  echo -e "  Press Enter when you have the HTML copied..."
+  echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
   read -r < /dev/tty
 
   # Read from clipboard (never from stdin — avoids HTML dumping into terminal)
@@ -214,7 +215,8 @@ ASSEMBLED
     warn "This doesn't look like a full HTML page."
     echo "  Make sure you copied the complete output starting with <!DOCTYPE html>"
     echo ""
-    echo -n "  Copy the full HTML and press Enter to try again (or Ctrl+C to exit): "
+    echo -e "  Copy the full HTML and press Enter to try again..."
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
     read -r < /dev/tty
     content=$(paste_from_clipboard 2>/dev/null || true)
   fi

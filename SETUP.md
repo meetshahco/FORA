@@ -259,29 +259,36 @@ Run the health check to confirm your keys are wired correctly:
 
 ---
 
-## Step 5 — Run your first brainstorm
+## Step 5 — Run your first application
 *~15 min*
 
-Here's what happens in this step:
+From here on, every application starts with one command:
+```bash
+./run.sh
+```
+
+It will ask for the job description URL, then guide you through brainstorm → generate → deploy in one flow. You don't need to remember any arguments — just run it and follow the prompts.
+
+Here's what happens under the hood:
 
 ```
   Terminal              AI chat (browser tab)          Terminal
   ────────              ─────────────────────          ────────
-  brainstorm.sh
-  + profile.json  ───→  paste once
-  + JD text             ↓
-                        brainstorm conversation
+  run.sh asks
+  for JD URL      ───→  brainstorm paste
+  + profile.json        ↓
+  + JD text             brainstorm conversation
                         ↓
                         final content_brief.json  ───→ saved automatically
-                                                       briefs/[company-role].json
+                                                       briefs/[company].json
 ```
 
-**In your terminal** — paste in the URL of the job description you want to apply for:
+**In your terminal:**
 ```bash
-./brainstorm.sh https://company.com/jobs/senior-designer
+./run.sh
 ```
 
-The script fetches the JD, assembles your profile + the brainstorm prompt, and copies everything to your clipboard. It then waits for you.
+The script asks for the JD URL, fetches it, assembles your profile + the brainstorm prompt, and copies everything to your clipboard. It then waits for you.
 
 **In your browser** — open any AI chat and paste with ⌘V. The brainstorm agent will:
 1. Analyse the JD and score it against your profile
@@ -318,36 +325,25 @@ Brief files are gitignored — they won't be committed.
 ---
 
 ## Step 6 — Generate your page
-*~2 min (Mode 2A + 3) or ~15 min (Mode 1 + 2B)*
 
-**Mode 2A + 3 — Automated codegen (Anthropic API key required):**
+If you're running `./run.sh`, this step happens automatically after the brainstorm — it prompts you to pick an option and handles the rest.
 
-In your terminal — replace `[company]` with the brief filename brainstorm.sh gave you:
+If you're re-generating a page without re-doing the brainstorm:
 ```bash
-node generate.js --run briefs/[company].json
+./run.sh --brief briefs/[company].json
 ```
 
-This calls the API, assembles your page, and writes it to `output/[company]/index.html` automatically.
+This skips the brainstorm and goes straight to generate → deploy.
 
 ---
 
-**Mode 1 + 2B — Manual codegen (no Anthropic key needed):**
+**What happens based on your option:**
 
-In your terminal:
-```bash
-./codegen.sh briefs/[company].json
-```
+Options 3 + 4 (Anthropic API): the script calls the API and writes `output/[company]/index.html` automatically.
 
-This copies the codegen prompt + your brief to your clipboard in one go. Then:
+Options 1 + 2 (manual codegen): the script copies the full codegen prompt + brief to your clipboard. Paste into your AI chat, copy the HTML output, come back to the terminal and press Enter. The script saves it automatically.
 
-1. Open your AI chat and paste ⌘V
-2. The assistant generates the full page HTML
-3. Copy the HTML output
-4. Come back to the terminal and press Enter
-
-The script saves the HTML automatically — no file naming, no folder creation.
-
-> **Need to exit?** Press `Ctrl+C` — the script exits cleanly with the command to resume.
+> **Need to exit at any point?** Press `Ctrl+C` — every prompt shows this hint.
 
 ---
 
@@ -355,8 +351,6 @@ The script saves the HTML automatically — no file naming, no folder creation.
 ```
 ✓ output/[company]/index.html
 ```
-
-If something looks off, run `./codegen.sh briefs/[company].json` again — it'll ask if you want to regenerate.
 
 ---
 
@@ -461,6 +455,17 @@ pbpaste > profile/profile.json
 **Customise your design system.** Open `design-system/default.md` in any text editor and adjust colours, typography, or spacing. Changes apply to every page you generate from that point.
 
 **Track your applications.** Application history tracking is coming in V1 — a local `applications/applications.json` that logs every brief you've run, every page you've deployed, and every response.
+
+**Stay up to date.** FORA is actively improving — bug fixes, better prompts, new features. Your fork doesn't update automatically. To pull the latest changes:
+
+1. Go to your fork on GitHub (`github.com/yourhandle/FORA`)
+2. Click **Sync fork** → **Update branch**
+3. In your terminal:
+```bash
+git pull origin main
+```
+
+Your personal files (`profile.json`, `briefs/`, `output/`, `.env`) are gitignored and never touched by updates.
 
 ---
 

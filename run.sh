@@ -90,12 +90,14 @@ else
 
   if [[ -z "$JD_URL" ]]; then
     echo ""
-    read -rp "  Job description URL: " JD_URL
+    echo -e "  Job description URL:"
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r JD_URL < /dev/tty
   fi
 
   echo ""
   if [[ -n "$JD_URL" ]]; then
-    bash brainstorm.sh "$JD_URL"
+    FORA_CALLED_FROM_RUN=true bash brainstorm.sh "$JD_URL"
   else
     fail "No URL provided. Run: ./run.sh https://company.com/jobs/role"
   fi
@@ -139,7 +141,8 @@ else
 fi
 echo ""
 
-read -rp "  Enter 1, 2, 3, or 4: " MODE_CHOICE
+echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+read -r MODE_CHOICE < /dev/tty
 
 # Validate choice against available keys
 case "$MODE_CHOICE" in
@@ -210,7 +213,8 @@ ABS_PATH="$(cd "$(dirname "$OUTPUT_FILE")" && pwd)/$(basename "$OUTPUT_FILE")"
 echo -e "  ${BOLD}Preview your page before deploying:${RESET}"
 echo -e "  ${DIM}file://$ABS_PATH${RESET}"
 echo ""
-read -rp "  Happy with it? (y/n): " LOOKS_GOOD
+echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+read -r LOOKS_GOOD < /dev/tty
 
 if [[ "$LOOKS_GOOD" =~ ^[Nn]$ ]]; then
   echo ""

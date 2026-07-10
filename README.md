@@ -19,10 +19,10 @@ chmod +x setup.sh brainstorm.sh codegen.sh run.sh
 ./setup.sh
 
 # Step 2 — every application from here on
-./run.sh https://company.com/jobs/role
+./run.sh
 ```
 
-`run.sh` handles everything — brainstorm, mode selection, generate, deploy — in one guided flow. No API keys needed to start.
+`run.sh` handles everything — brainstorm, mode selection, generate, deploy — in one guided flow. It asks for the JD URL when you run it. No API keys needed to start.
 
 ---
 
