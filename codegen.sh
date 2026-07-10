@@ -35,10 +35,6 @@ DS_FILE="$SCRIPT_DIR/design-system/default.md"
 trap 'echo ""; echo "  Exited. Run ./codegen.sh $* to continue later."; exit 0' INT
 
 # ── Flush any buffered stdin ─────────────────────────────────────────────────
-flush_stdin() {
-  while read -r -t 0 _; do read -r _; done 2>/dev/null || true
-}
-
 # ── Copy to clipboard ────────────────────────────────────────────────────────
 copy_to_clipboard() {
   local content="$1"
@@ -75,7 +71,7 @@ main() {
     echo "  Available briefs:"
     ls "$SCRIPT_DIR/briefs/"*.json 2>/dev/null | xargs -I{} basename {} .json | sed 's/^/    /' || echo "    (none yet)"
     echo ""
-    flush_stdin; read -r brief_name < /dev/tty
+    read -r brief_name
     brief_name="${brief_name#briefs/}"
     brief_name="${brief_name%.json}"
     brief_path="$SCRIPT_DIR/briefs/${brief_name}.json"
@@ -103,7 +99,7 @@ main() {
     echo "  1) Regenerate (overwrite existing)"
     echo "  2) Keep existing and exit"
     echo ""
-    flush_stdin; read -r choice < /dev/tty
+    read -r choice
     case "$choice" in
       2)
         echo ""
@@ -195,16 +191,17 @@ ASSEMBLED
   echo "  1. Open your AI chat (Claude.ai, ChatGPT, or any model)"
   echo "  2. Paste  ⌘V  — the full codegen prompt + brief is ready"
   echo "  3. The assistant generates the complete page HTML"
-  echo "  4. Paste the full HTML here (⌘V), then press Ctrl+D on a new empty line"
+  echo "  4. Copy the full HTML output  (⌘C)"
   echo ""
-  echo -e "  ${DIM}(Ctrl+C to exit without saving)${RESET}"
-  echo ""
+  echo -e "  Switch back here and press Enter — FORA reads your clipboard."
+  echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
 
-  # Read HTML directly from paste
+  read -r _
+
   local content
-  content=$(cat /dev/tty 2>/dev/null || true)
+  content=$(pbpaste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null || true)
 
-  [[ -z "$content" ]] && fail "No content received. Paste the HTML and press Ctrl+D to save."
+  [[ -z "$content" ]] && fail "Clipboard appears empty. Copy the HTML in your AI chat and try again."
 
   # Basic HTML check
   if ! echo "$content" | grep -qi "<!DOCTYPE\|<html"; then
@@ -212,9 +209,10 @@ ASSEMBLED
     warn "This doesn't look like a full HTML page."
     echo "  Make sure you copied the complete output starting with <!DOCTYPE html>"
     echo ""
-    echo -e "  Paste the full HTML again, then press ${BOLD}Ctrl+D${RESET}:"
-    echo ""
-    content=$(cat /dev/tty 2>/dev/null || true)
+    echo -e "  Copy the full HTML, then press Enter:"
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r _
+    content=$(pbpaste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null || true)
   fi
 
   # Save

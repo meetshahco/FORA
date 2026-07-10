@@ -25,7 +25,6 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 ok()   { echo -e "${GREEN}✓${RESET} $1"; }
-flush_stdin() { while read -r -t 0 _; do read -r _; done 2>/dev/null || true; }
 fail() { echo -e "${RED}✗${RESET} $1"; exit 1; }
 warn() { echo -e "${YELLOW}⚠${RESET}  $1"; }
 info() { echo -e "${BOLD}→${RESET} $1"; }
@@ -184,7 +183,7 @@ else
     echo -e "  Job description URL:"
     echo -e "  ${DIM}Or press R to recover a brief you already have copied from AI chat${RESET}"
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-    flush_stdin; read -r JD_URL < /dev/tty
+    read -r JD_URL
   fi
 
   echo ""
@@ -193,7 +192,7 @@ else
   if [[ "$(echo "$JD_URL" | tr '[:upper:]' '[:lower:]')" == "r" ]]; then
     echo -e "  What company is this brief for? (used as the filename)"
     echo -e "  ${DIM}e.g. remote, linear, nola${RESET}"
-    flush_stdin; read -r recover_slug < /dev/tty
+    read -r recover_slug
     recover_slug=$(echo "$recover_slug" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
     FORA_CALLED_FROM_RUN=true bash brainstorm.sh --recover "$recover_slug"
     BRIEF_PATH=$(ls -t briefs/*.json 2>/dev/null | head -1 || true)
@@ -249,7 +248,7 @@ fi
 echo ""
 
 echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-flush_stdin; read -r MODE_CHOICE < /dev/tty
+read -r MODE_CHOICE
 
 # Validate choice against available keys
 case "$MODE_CHOICE" in
@@ -321,7 +320,7 @@ echo -e "  ${BOLD}Preview your page before deploying:${RESET}"
 echo -e "  ${DIM}file://$ABS_PATH${RESET}"
 echo ""
 echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-flush_stdin; read -r LOOKS_GOOD < /dev/tty
+read -r LOOKS_GOOD
 
 if [[ "$LOOKS_GOOD" =~ ^[Nn]$ ]]; then
   echo ""
@@ -374,9 +373,13 @@ esac
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "──────────────────────────────────────────────────────"
-echo -e "${GREEN}${BOLD}Application ready.${RESET}"
+echo -e "${GREEN}${BOLD}Done.${RESET}"
 echo ""
-echo "  Next application:  ./run.sh [JD URL]"
-echo "  Re-run this one:   ./run.sh --brief $BRIEF_PATH"
-echo "  Health check:      ./setup.sh --check"
+echo -e "  ${BOLD}Preview your page:${RESET}"
+ABS_OUTPUT="$(cd "$(dirname "$OUTPUT_FILE")" 2>/dev/null && pwd)/$(basename "$OUTPUT_FILE")"
+echo -e "  open \"$ABS_OUTPUT\""
+echo ""
+echo -e "  ${DIM}Next application:     ./run.sh${RESET}"
+echo -e "  ${DIM}Re-run this one:      ./run.sh --brief $BRIEF_PATH${RESET}"
+echo -e "  ${DIM}Health check:         ./setup.sh --check${RESET}"
 echo ""

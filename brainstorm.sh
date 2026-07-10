@@ -48,11 +48,6 @@ check_deps() {
   fi
 }
 
-# ── Flush any buffered stdin (prevents clipboard paste bleeding into shell) ──
-flush_stdin() {
-  while read -r -t 0 _; do read -r _; done 2>/dev/null || true
-}
-
 # ── Copy to clipboard (cross-platform) ──────────────────────────────────────
 copy_to_clipboard() {
   local content="$1"
@@ -145,7 +140,7 @@ save_brief() {
     echo "  2) Save as a new version (briefs/${slug}-v2.json)"
     echo "  3) Keep the existing brief and exit"
     echo ""
-    flush_stdin; read -r choice < /dev/tty
+    read -r choice
     case "$choice" in
       1)
         info "Will overwrite briefs/${slug}.json"
@@ -181,19 +176,18 @@ save_brief() {
   echo ""
   echo "  When the AI gives you the final content_brief.json:"
   echo ""
-  echo -e "  ${BOLD}1. Copy the JSON block${RESET} from the AI chat  (⌘C)"
-  echo -e "  ${BOLD}2. Paste it here${RESET}  (⌘V)"
-  echo -e "  ${BOLD}3. Press Ctrl+D${RESET} on a new empty line to save"
+  echo -e "  ${BOLD}1. Copy the JSON block${RESET} in your AI chat  (⌘C)"
+  echo -e "  ${BOLD}2. Switch back here and press Enter${RESET} — FORA reads your clipboard"
   echo ""
-  echo -e "  ${DIM}(Ctrl+C to exit without saving)${RESET}"
-  echo ""
+  echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
 
-  # Read content directly from paste — natural Cmd+V flow
+  read -r _
+
   local content
-  content=$(cat /dev/tty 2>/dev/null || true)
+  content=$(pbpaste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null || true)
 
   if [[ -z "$content" ]]; then
-    fail "No content received. Paste the JSON and press Ctrl+D to save."
+    fail "Clipboard appears empty. Copy the JSON in your AI chat and try again."
   fi
 
   # Validate JSON
@@ -211,12 +205,14 @@ save_brief() {
 
   if [[ "$valid" == false ]]; then
     echo ""
-    warn "The content doesn't look like valid JSON."
+    warn "Clipboard doesn't look like valid JSON."
     echo "  Make sure you copied only the JSON block (starting with { and ending with })"
+    echo "  not the surrounding text."
     echo ""
-    echo -e "  Paste the JSON block again, then press ${BOLD}Ctrl+D${RESET}:"
-    echo ""
-    content=$(cat /dev/tty 2>/dev/null || true)
+    echo -e "  Copy just the JSON, then press Enter:"
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r _
+    content=$(pbpaste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null || true)
     echo "$content" | node -e "
       process.stdin.resume();
       process.stdin.setEncoding('utf8');
@@ -255,13 +251,13 @@ main() {
       echo ""
       echo "  What company is this brief for? (used as the filename)"
       echo -e "  ${DIM}e.g. remote, linear, nola${RESET}"
-      flush_stdin; read -r slug < /dev/tty
+      read -r slug
       slug=$(echo "$slug" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
     fi
     echo ""
     echo -e "${BOLD}Recovery mode — saving brief from clipboard${RESET}"
     echo ""
-    echo "  Paste the JSON here (⌘V), then press Ctrl+D on a new empty line:"
+    echo "  Copy the JSON in your AI chat (⌘C), then press Enter here — FORA reads your clipboard."
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
     save_brief "$slug"
     exit 0
@@ -271,7 +267,7 @@ main() {
   local jd_url="${1:-}"
   if [[ -z "$jd_url" ]]; then
     echo ""
-    read -r jd_url < /dev/tty
+    read -r jd_url
     echo ""
   fi
 
@@ -356,7 +352,7 @@ ASSEMBLED
     echo -e "  Press Enter to continue to generate + deploy..."
     echo -e "  ${DIM}(Ctrl+C to stop here — resume later with: ./run.sh --brief briefs/${slug}.json)${RESET}"
     echo ""
-    flush_stdin; read -r < /dev/tty
+    read -r _
     echo ""
     exec "$SCRIPT_DIR/run.sh" --brief "$SCRIPT_DIR/briefs/${slug}.json"
   fi
