@@ -223,13 +223,17 @@ if ! $CHECK_ONLY; then
 
     # ── Question 1: AI key ─────────────────────────────────────────────────
     echo ""
-    echo "  Do you have an AI API key? (used for auto codegen — options 3 + 4)"
-    echo -e "  ${DIM}If not, you can always generate in AI chat for free — skip for now.${RESET}"
+    if [[ "$HAS_AI" == true ]]; then
+      echo -e "  AI key already set ${DIM}(${AI_PROVIDER_NAME})${RESET} — replace it or skip to keep it."
+    else
+      echo "  Do you have an AI API key? (used for auto codegen — options 3 + 4)"
+      echo -e "  ${DIM}If not, you can always generate in AI chat for free — skip for now.${RESET}"
+    fi
     echo ""
     echo "  1) Anthropic Claude  — console.anthropic.com/settings/keys"
     echo "  2) Google Gemini     — aistudio.google.com/app/apikey"
     echo "  3) OpenAI            — platform.openai.com/api-keys"
-    echo "  4) Skip — no AI key"
+    [[ "$HAS_AI" == true ]] && echo "  4) Keep existing key" || echo "  4) Skip — no AI key"
     echo ""
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
     read -r AI_CHOICE
@@ -242,43 +246,55 @@ if ! $CHECK_ONLY; then
       1)
         echo ""
         echo -e "  Paste your Anthropic key:"
-        echo -e "  ${DIM}(starts with sk-ant-)${RESET}"
         read -r NEW_ANTHROPIC
         if [[ -n "$NEW_ANTHROPIC" ]]; then
           ok "Anthropic key received"
+          # Clear other AI keys when switching provider
+          NEW_GEMINI=""; NEW_OPENAI=""
+          GEMINI_KEY=""; OPENAI_KEY=""
         fi
         ;;
       2)
         echo ""
         echo -e "  Paste your Gemini key:"
-        echo -e "  ${DIM}(starts with AIza)${RESET}"
         read -r NEW_GEMINI
         if [[ -n "$NEW_GEMINI" ]]; then
           ok "Gemini key received"
+          NEW_ANTHROPIC=""; NEW_OPENAI=""
+          ANTHROPIC_KEY=""; OPENAI_KEY=""
         fi
         ;;
       3)
         echo ""
         echo -e "  Paste your OpenAI key:"
-        echo -e "  ${DIM}(starts with sk-)${RESET}"
         read -r NEW_OPENAI
         if [[ -n "$NEW_OPENAI" ]]; then
           ok "OpenAI key received"
+          NEW_ANTHROPIC=""; NEW_GEMINI=""
+          ANTHROPIC_KEY=""; GEMINI_KEY=""
         fi
         ;;
       4|*)
-        dim "  Skipping AI key — option 1 and 2 will always be available."
+        if [[ "$HAS_AI" == true ]]; then
+          ok "Keeping existing ${AI_PROVIDER_NAME} key"
+        else
+          dim "  Skipping AI key — options 1 and 2 will always be available."
+        fi
         ;;
     esac
 
     # ── Question 2: Vercel ─────────────────────────────────────────────────
     echo ""
-    echo "  Do you have a Vercel token? (used for auto deploy — options 2 + 4)"
-    echo -e "  ${DIM}Gets you a permanent live URL with one command. Free tier works.${RESET}"
-    echo -e "  ${DIM}Get one at: vercel.com/account/tokens${RESET}"
+    if [[ "$HAS_VERCEL" == true ]]; then
+      echo -e "  Vercel token already set — replace it or skip to keep it."
+    else
+      echo "  Do you have a Vercel token? (used for auto deploy — options 2 + 4)"
+      echo -e "  ${DIM}Gets you a permanent live URL with one command. Free tier works.${RESET}"
+      echo -e "  ${DIM}Get one at: vercel.com/account/tokens${RESET}"
+    fi
     echo ""
-    echo "  1) Yes — paste my token"
-    echo "  2) Skip — I'll deploy manually"
+    echo "  1) Paste a new token"
+    [[ "$HAS_VERCEL" == true ]] && echo "  2) Keep existing token" || echo "  2) Skip — I'll deploy manually"
     echo ""
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
     read -r VERCEL_CHOICE
@@ -295,13 +311,17 @@ if ! $CHECK_ONLY; then
           ok "Vercel token received"
           echo ""
           echo -e "  Vercel project name to deploy under:"
-          echo -e "  ${DIM}Press Enter to use the default: fora-pages${RESET}"
+          echo -e "  ${DIM}Press Enter to keep: ${VERCEL_PROJECT}${RESET}"
           read -r INPUT_PROJECT
           [[ -n "$INPUT_PROJECT" ]] && NEW_PROJECT="$INPUT_PROJECT"
         fi
         ;;
       2|*)
-        dim "  Skipping Vercel — you can drag your output/ folder to netlify.com/drop."
+        if [[ "$HAS_VERCEL" == true ]]; then
+          ok "Keeping existing Vercel token"
+        else
+          dim "  Skipping Vercel — you can drag your output/ folder to netlify.com/drop."
+        fi
         ;;
     esac
 
