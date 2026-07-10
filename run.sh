@@ -179,23 +179,34 @@ else
   if [[ -z "$JD_URL" ]]; then
     echo ""
     echo -e "  Job description URL:"
+    echo -e "  ${DIM}Or press R to recover a brief you already have copied from AI chat${RESET}"
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
     flush_stdin; read -r JD_URL < /dev/tty
   fi
 
   echo ""
-  if [[ -n "$JD_URL" ]]; then
+
+  # Recovery shortcut — user typed "r" or "R" at the URL prompt
+  if [[ "${JD_URL,,}" == "r" ]]; then
+    echo -e "  What company is this brief for? (used as the filename)"
+    echo -e "  ${DIM}e.g. remote, linear, nola${RESET}"
+    flush_stdin; read -r recover_slug < /dev/tty
+    recover_slug=$(echo "$recover_slug" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+    FORA_CALLED_FROM_RUN=true bash brainstorm.sh --recover "$recover_slug"
+    BRIEF_PATH=$(ls -t briefs/*.json 2>/dev/null | head -1 || true)
+    [[ -z "$BRIEF_PATH" ]] && fail "No brief found. Try again."
+    SLUG=$(basename "$BRIEF_PATH" .json)
+    ok "Brief ready: $BRIEF_PATH"
+  elif [[ -n "$JD_URL" ]]; then
     FORA_CALLED_FROM_RUN=true bash brainstorm.sh "$JD_URL"
+    # Find the most recently modified brief
+    BRIEF_PATH=$(ls -t briefs/*.json 2>/dev/null | head -1 || true)
+    [[ -z "$BRIEF_PATH" ]] && fail "No brief found in briefs/. Something went wrong in brainstorm."
+    SLUG=$(basename "$BRIEF_PATH" .json)
+    ok "Brief ready: $BRIEF_PATH"
   else
     fail "No URL provided. Run: ./run.sh https://company.com/jobs/role"
   fi
-
-  # brainstorm.sh saves the brief and prints the slug — derive from briefs/
-  # Find the most recently modified brief
-  BRIEF_PATH=$(ls -t briefs/*.json 2>/dev/null | head -1 || true)
-  [[ -z "$BRIEF_PATH" ]] && fail "No brief found in briefs/. Something went wrong in brainstorm."
-  SLUG=$(basename "$BRIEF_PATH" .json)
-  ok "Brief ready: $BRIEF_PATH"
 fi
 
 echo ""
