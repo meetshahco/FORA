@@ -181,32 +181,22 @@ save_brief() {
   echo ""
   echo "  When the AI gives you the final content_brief.json:"
   echo ""
-  echo -e "  ${BOLD}1. Copy the JSON block${RESET} from the AI chat"
-  echo -e "  ${BOLD}2. Come back here and press Enter${RESET}"
+  echo -e "  ${BOLD}1. Copy the JSON block${RESET} from the AI chat  (⌘C)"
+  echo -e "  ${BOLD}2. Paste it here${RESET}  (⌘V)"
+  echo -e "  ${BOLD}3. Press Ctrl+D${RESET} on a new empty line to save"
   echo ""
-  # Wait for user — read from /dev/tty directly so stdin is not affected by paste
-  echo -e "  Press Enter when you have the JSON copied..."
-  echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-  flush_stdin; read -r < /dev/tty
+  echo -e "  ${DIM}(Ctrl+C to exit without saving)${RESET}"
+  echo ""
 
-  # Read from clipboard (never from stdin — avoids JSON dumping into terminal)
+  # Read content directly from paste — natural Cmd+V flow
   local content
-  content=$(paste_from_clipboard 2>/dev/null || true)
-
-  # Fallback: ask user to paste directly in terminal
-  if [[ -z "$content" ]]; then
-    echo ""
-    echo "  Clipboard appears empty. Paste the JSON directly below,"
-    echo -e "  then press ${BOLD}Ctrl+D${RESET} on a new empty line when done:"
-    echo ""
-    content=$(cat 2>/dev/null || true)
-  fi
+  content=$(cat /dev/tty 2>/dev/null || true)
 
   if [[ -z "$content" ]]; then
-    fail "No content received. Copy the JSON from your AI chat and run brainstorm.sh again."
+    fail "No content received. Paste the JSON and press Ctrl+D to save."
   fi
 
-  # Validate JSON silently
+  # Validate JSON
   local valid=true
   echo "$content" | node -e "
     process.stdin.resume();
@@ -222,14 +212,11 @@ save_brief() {
   if [[ "$valid" == false ]]; then
     echo ""
     warn "The content doesn't look like valid JSON."
-    echo ""
     echo "  Make sure you copied only the JSON block (starting with { and ending with })"
-    echo "  not the surrounding text or assets checklist."
     echo ""
-    echo -e "  Copy the JSON block and press Enter to try again..."
-    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-    flush_stdin; read -r < /dev/tty
-    content=$(paste_from_clipboard 2>/dev/null || true)
+    echo -e "  Paste the JSON block again, then press ${BOLD}Ctrl+D${RESET}:"
+    echo ""
+    content=$(cat /dev/tty 2>/dev/null || true)
     echo "$content" | node -e "
       process.stdin.resume();
       process.stdin.setEncoding('utf8');
@@ -274,7 +261,7 @@ main() {
     echo ""
     echo -e "${BOLD}Recovery mode — saving brief from clipboard${RESET}"
     echo ""
-    echo "  Make sure the content_brief.json is copied, then press Enter."
+    echo "  Paste the JSON here (⌘V), then press Ctrl+D on a new empty line:"
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
     save_brief "$slug"
     exit 0

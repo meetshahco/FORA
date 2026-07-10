@@ -195,27 +195,16 @@ ASSEMBLED
   echo "  1. Open your AI chat (Claude.ai, ChatGPT, or any model)"
   echo "  2. Paste  ⌘V  — the full codegen prompt + brief is ready"
   echo "  3. The assistant generates the complete page HTML"
-  echo "  4. Copy the full HTML output (starting with <!DOCTYPE html>)"
+  echo "  4. Paste the full HTML here (⌘V), then press Ctrl+D on a new empty line"
+  echo ""
+  echo -e "  ${DIM}(Ctrl+C to exit without saving)${RESET}"
   echo ""
 
-  # Wait for user — read from /dev/tty directly so stdin is not affected by paste
-  echo -e "  Press Enter when you have the HTML copied..."
-  echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-  flush_stdin; read -r < /dev/tty
-
-  # Read from clipboard (never from stdin — avoids HTML dumping into terminal)
+  # Read HTML directly from paste
   local content
-  content=$(paste_from_clipboard 2>/dev/null || true)
+  content=$(cat /dev/tty 2>/dev/null || true)
 
-  if [[ -z "$content" ]]; then
-    echo ""
-    echo "  Clipboard appears empty. Paste the HTML directly below,"
-    echo -e "  then press ${BOLD}Ctrl+D${RESET} on a new empty line when done:"
-    echo ""
-    content=$(cat 2>/dev/null || true)
-  fi
-
-  [[ -z "$content" ]] && fail "No content received. Copy the HTML and run codegen.sh again."
+  [[ -z "$content" ]] && fail "No content received. Paste the HTML and press Ctrl+D to save."
 
   # Basic HTML check
   if ! echo "$content" | grep -qi "<!DOCTYPE\|<html"; then
@@ -223,10 +212,9 @@ ASSEMBLED
     warn "This doesn't look like a full HTML page."
     echo "  Make sure you copied the complete output starting with <!DOCTYPE html>"
     echo ""
-    echo -e "  Copy the full HTML and press Enter to try again..."
-    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-    flush_stdin; read -r < /dev/tty
-    content=$(paste_from_clipboard 2>/dev/null || true)
+    echo -e "  Paste the full HTML again, then press ${BOLD}Ctrl+D${RESET}:"
+    echo ""
+    content=$(cat /dev/tty 2>/dev/null || true)
   fi
 
   # Save
