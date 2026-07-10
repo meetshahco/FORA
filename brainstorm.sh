@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+# Redirect stdin from terminal device — prevents clipboard content ever reaching stdin
+exec < /dev/tty
+
 # ── Colours for output ──────────────────────────────────────────────────────
 BOLD="\033[1m"
 GREEN="\033[0;32m"

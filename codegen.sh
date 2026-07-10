@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+# Redirect stdin from terminal device — prevents clipboard content ever reaching stdin
+exec < /dev/tty
+
 # ── Colours ─────────────────────────────────────────────────────────────────
 BOLD="\033[1m"
 GREEN="\033[0;32m"
@@ -30,6 +33,11 @@ DS_FILE="$SCRIPT_DIR/design-system/default.md"
 
 # ── Ctrl+C exits cleanly ─────────────────────────────────────────────────────
 trap 'echo ""; echo "  Exited. Run ./codegen.sh $* to continue later."; exit 0' INT
+
+# ── Flush any buffered stdin ─────────────────────────────────────────────────
+flush_stdin() {
+  while read -r -t 0 _; do read -r _; done 2>/dev/null || true
+}
 
 # ── Copy to clipboard ────────────────────────────────────────────────────────
 copy_to_clipboard() {
@@ -67,7 +75,7 @@ main() {
     echo "  Available briefs:"
     ls "$SCRIPT_DIR/briefs/"*.json 2>/dev/null | xargs -I{} basename {} .json | sed 's/^/    /' || echo "    (none yet)"
     echo ""
-    read -r brief_name < /dev/tty
+    flush_stdin; read -r brief_name < /dev/tty
     brief_name="${brief_name#briefs/}"
     brief_name="${brief_name%.json}"
     brief_path="$SCRIPT_DIR/briefs/${brief_name}.json"
@@ -95,7 +103,7 @@ main() {
     echo "  1) Regenerate (overwrite existing)"
     echo "  2) Keep existing and exit"
     echo ""
-    read -r choice < /dev/tty
+    flush_stdin; read -r choice < /dev/tty
     case "$choice" in
       2)
         echo ""
@@ -193,7 +201,7 @@ ASSEMBLED
   # Wait for user — read from /dev/tty directly so stdin is not affected by paste
   echo -e "  Press Enter when you have the HTML copied..."
   echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-  read -r < /dev/tty
+  flush_stdin; read -r < /dev/tty
 
   # Read from clipboard (never from stdin — avoids HTML dumping into terminal)
   local content
@@ -217,7 +225,7 @@ ASSEMBLED
     echo ""
     echo -e "  Copy the full HTML and press Enter to try again..."
     echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-    read -r < /dev/tty
+    flush_stdin; read -r < /dev/tty
     content=$(paste_from_clipboard 2>/dev/null || true)
   fi
 
