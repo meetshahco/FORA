@@ -731,18 +731,29 @@ Regenerate before deploying:
   const partialFailure  = failedSections.length > 0 && !allFailed;
 
   if (allFailed) {
+    const firstError = failedSections[0].error;
+
+    // Classify the failure cause for run.sh to act on
+    let causeCode = 'unknown';
+    if (/no longer available|deprecated|404/i.test(firstError))  causeCode = 'model_deprecated';
+    else if (/401|invalid.*key|auth/i.test(firstError))          causeCode = 'bad_key';
+    else if (/429|rate.?limit|quota/i.test(firstError))          causeCode = 'rate_limit';
+    else if (/network|ENOTFOUND|ECONNREFUSED/i.test(firstError)) causeCode = 'network';
+
+    // Write cause to temp file so run.sh can offer an interactive fix
+    try {
+      const provider = detectProvider();
+      const currentModel = process.env.AI_MODEL || '';
+      fs.writeFileSync(
+        path.join(__dirname, '.fora_error'),
+        JSON.stringify({ causeCode, firstError, provider, currentModel }),
+        'utf8'
+      );
+    } catch {}
+
     console.error('');
     console.error(`${RED}✗${RESET} All ${totalSections} sections failed. Page not written.`);
-    console.error('');
-    console.error('  Common causes:');
-    console.error('  • Wrong AI model — check AI_MODEL in .env matches your account');
-    console.error('  • Invalid or expired API key');
-    console.error('  • API rate limit or quota exceeded');
-    console.error('');
-    console.error(`  First error: ${failedSections[0].error}`);
-    console.error('');
-    console.error('  Fix your .env, then retry:');
-    console.error(`  ${BOLD}node generate.js --run ${briefArg}${RESET}`);
+    console.error(`  ${firstError}`);
     process.exit(1);
   }
 

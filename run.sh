@@ -467,11 +467,93 @@ if [[ "$SKIP_GENERATE" == false ]]; then
       set -e
 
       if [[ "$GEN_EXIT" -eq 1 ]]; then
-        # Total failure — generate.js already printed the reason
+        # Total failure — read cause from .fora_error and offer interactive fix
         echo ""
-        echo -e "  ${DIM}Fix the issue above, then retry: ./run.sh --brief $BRIEF_PATH${RESET}"
-        echo ""
-        exit 1
+        CAUSE_CODE=""
+        CURRENT_MODEL=""
+        PROVIDER_NAME=""
+        if [[ -f ".fora_error" ]]; then
+          CAUSE_CODE=$(node -e "try{const e=require('./.fora_error');console.log(e.causeCode||'')}catch{}" 2>/dev/null || echo "")
+          CURRENT_MODEL=$(node -e "try{const e=require('./.fora_error');console.log(e.currentModel||'')}catch{}" 2>/dev/null || echo "")
+          PROVIDER_NAME=$(node -e "try{const e=require('./.fora_error');console.log(e.provider||'')}catch{}" 2>/dev/null || echo "")
+          rm -f ".fora_error"
+        fi
+
+        case "$CAUSE_CODE" in
+          model_deprecated)
+            echo -e "  ${YELLOW}⚠${RESET}  The model ${DIM}${CURRENT_MODEL}${RESET} is no longer available."
+            echo ""
+            # Suggest provider-appropriate replacement
+            case "$PROVIDER_NAME" in
+              gemini)    SUGGESTED_MODEL="gemini-2.0-flash" ;;
+              anthropic) SUGGESTED_MODEL="claude-opus-4-5" ;;
+              openai)    SUGGESTED_MODEL="gpt-4o" ;;
+              *)         SUGGESTED_MODEL="" ;;
+            esac
+            if [[ -n "$SUGGESTED_MODEL" ]]; then
+              echo -e "  Fix now? Update AI_MODEL to ${BOLD}${SUGGESTED_MODEL}${RESET}"
+              echo "  1) Yes — update .env and retry"
+              echo "  2) No — I'll fix it manually"
+              echo ""
+              read -r FIX_CHOICE
+              if [[ "$FIX_CHOICE" == "1" ]]; then
+                # Update AI_MODEL in .env in-place
+                if grep -q "^AI_MODEL=" .env 2>/dev/null; then
+                  sed -i.bak "s|^AI_MODEL=.*|AI_MODEL=${SUGGESTED_MODEL}|" .env && rm -f .env.bak
+                else
+                  echo "" >> .env
+                  echo "AI_MODEL=${SUGGESTED_MODEL}" >> .env
+                fi
+                ok "Updated AI_MODEL=${SUGGESTED_MODEL} in .env"
+                echo ""
+                dim "  Retrying..."
+                echo ""
+                set +e
+                node generate.js --run "$BRIEF_PATH"
+                GEN_EXIT=$?
+                set -e
+                [[ "$GEN_EXIT" -eq 1 ]] && { rm -f .fora_error; echo ""; echo -e "  ${DIM}Still failing — run ./setup.sh to review your keys.${RESET}"; echo ""; exit 1; }
+              else
+                echo ""
+                echo -e "  Open .env and set: ${BOLD}AI_MODEL=${SUGGESTED_MODEL}${RESET}"
+                echo "  Then retry: ./run.sh --brief $BRIEF_PATH"
+                echo ""
+                exit 1
+              fi
+            else
+              echo -e "  Open .env and update ${BOLD}AI_MODEL${RESET} to a model your account supports."
+              echo "  Then retry: ./run.sh --brief $BRIEF_PATH"
+              echo ""
+              exit 1
+            fi
+            ;;
+          bad_key)
+            echo -e "  ${YELLOW}⚠${RESET}  API key looks invalid or expired."
+            echo ""
+            echo "  Run ./setup.sh to re-enter your key."
+            echo ""
+            exit 1
+            ;;
+          rate_limit)
+            echo -e "  ${YELLOW}⚠${RESET}  Rate limit or quota hit."
+            echo ""
+            echo "  Wait a minute and retry: ./run.sh --brief $BRIEF_PATH"
+            echo ""
+            exit 1
+            ;;
+          network)
+            echo -e "  ${YELLOW}⚠${RESET}  Network error — check your connection."
+            echo ""
+            echo "  Retry: ./run.sh --brief $BRIEF_PATH"
+            echo ""
+            exit 1
+            ;;
+          *)
+            echo -e "  ${DIM}Run ./setup.sh --check to review your keys, or retry: ./run.sh --brief $BRIEF_PATH${RESET}"
+            echo ""
+            exit 1
+            ;;
+        esac
       elif [[ "$GEN_EXIT" -eq 2 ]]; then
         # Partial failure — sections were generated but some failed
         echo ""
@@ -492,7 +574,7 @@ if [[ "$SKIP_GENERATE" == false ]]; then
             node generate.js --run "$BRIEF_PATH"
             GEN_EXIT=$?
             set -e
-            [[ "$GEN_EXIT" -eq 1 ]] && { echo ""; echo -e "  ${DIM}Fix the issue above, then retry: ./run.sh --brief $BRIEF_PATH${RESET}"; echo ""; exit 1; }
+            [[ "$GEN_EXIT" -eq 1 ]] && { rm -f .fora_error; echo ""; echo -e "  ${DIM}Still failing — run ./setup.sh to review your keys.${RESET}"; echo ""; exit 1; }
             ;;
           3)
             echo "  Aborted. Resume with: ./run.sh --brief $BRIEF_PATH"

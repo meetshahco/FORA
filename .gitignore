@@ -16,6 +16,7 @@ applications/applications.json
 
 # Run state files (local only)
 run.json
+.fora_error
 
 # Your media assets — images, gifs attached to work entries
 # Drop files here, reference them in profile.json as "assets/filename.png"
