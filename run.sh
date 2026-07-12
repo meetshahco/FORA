@@ -231,6 +231,7 @@ GEMINI_KEY=""
 OPENAI_KEY=""
 VERCEL_TOKEN=""
 VERCEL_PROJECT="fora-pages"
+DEPLOY_DOMAIN_RUN=""
 
 if [[ -f ".env" ]]; then
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -243,6 +244,7 @@ if [[ -f ".env" ]]; then
       OPENAI_API_KEY)      OPENAI_KEY="$v" ;;
       VERCEL_TOKEN)        VERCEL_TOKEN="$v" ;;
       VERCEL_PROJECT_NAME) VERCEL_PROJECT="$v" ;;
+      DEPLOY_DOMAIN)       DEPLOY_DOMAIN_RUN="$v" ;;
     esac
   done < ".env"
 fi
@@ -369,53 +371,174 @@ case "$MODE_CHOICE" in
     ;;
 esac
 
-OUTPUT_FILE="output/$SLUG/index.html"
+# Derive output slug from brief _meta (same logic as generate.js)
+# Falls back to brief filename if _meta is missing
+BRIEF_SLUG=$(node -e "
+  try {
+    const b = require('./$BRIEF_PATH');
+    const c = (b._meta?.company || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const r = (b._meta?.role    || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    console.log(c && r ? c+'-'+r : c || r || '');
+  } catch(e) { console.log(''); }
+" 2>/dev/null || echo "")
+[[ -z "$BRIEF_SLUG" ]] && BRIEF_SLUG="$SLUG"
+OUTPUT_FILE="output/$BRIEF_SLUG/index.html"
+
+# Build deploy URL preview for pre-deploy gate
+if [[ -n "$DEPLOY_DOMAIN_RUN" ]]; then
+  DEPLOY_URL_PREVIEW="https://${DEPLOY_DOMAIN_RUN}/${BRIEF_SLUG}"
+else
+  DEPLOY_URL_PREVIEW="https://${VERCEL_PROJECT}.vercel.app/${BRIEF_SLUG}"
+fi
+
+# ── Helper: validate output file ─────────────────────────────────────────────
+validate_output() {
+  local file="$1"
+  if [[ ! -f "$file" ]]; then
+    echo ""
+    fail "Output file not found: $file"
+    echo ""
+    echo "  This usually means generation was interrupted or failed silently."
+    echo "  Re-run to try again:"
+    echo ""
+    case "$MODE" in
+      3|2a) echo "  node generate.js --run $BRIEF_PATH" ;;
+      2b|1) echo "  ./run.sh --brief $BRIEF_PATH" ;;
+    esac
+    echo ""
+    exit 1
+  fi
+
+  local size_kb
+  size_kb=$(du -k "$file" 2>/dev/null | cut -f1)
+  if [[ "${size_kb:-0}" -lt 5 ]]; then
+    echo ""
+    warn "Output file is only ${size_kb}KB — likely an empty or broken page."
+    echo ""
+    echo -e "  ${DIM}This usually means all AI sections failed (wrong model, bad key, rate limit).${RESET}"
+    echo -e "  ${DIM}Check your .env — then retry:${RESET}"
+    echo ""
+    case "$MODE" in
+      3|2a) echo "  node generate.js --run $BRIEF_PATH" ;;
+      2b|1) echo "  ./run.sh --brief $BRIEF_PATH" ;;
+    esac
+    echo ""
+    exit 1
+  fi
+}
 
 # ── Generate ──────────────────────────────────────────────────────────────────
 echo ""
 
-case "$MODE" in
-  3|2a)
-    info "Generating page via Anthropic API..."
+# Fix 5 — Resume from existing output
+if [[ -f "$OUTPUT_FILE" ]]; then
+  EXISTING_KB=$(du -k "$OUTPUT_FILE" 2>/dev/null | cut -f1)
+  if [[ "${EXISTING_KB:-0}" -ge 5 ]]; then
     echo ""
-    if node generate.js --run "$BRIEF_PATH"; then
+    warn "A page already exists for this brief (${EXISTING_KB}KB):"
+    dim "  $OUTPUT_FILE"
+    echo ""
+    echo "  What do you want to do?"
+    echo "  1) Use existing page — skip to preview and deploy"
+    echo "  2) Regenerate — overwrite with a fresh generation"
+    echo ""
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r RESUME_CHOICE
+    if [[ "$RESUME_CHOICE" == "1" ]]; then
+      ok "Using existing page → $OUTPUT_FILE"
+      SKIP_GENERATE=true
+    else
+      dim "  Regenerating..."
+      SKIP_GENERATE=false
+    fi
+  fi
+fi
+
+SKIP_GENERATE="${SKIP_GENERATE:-false}"
+
+if [[ "$SKIP_GENERATE" == false ]]; then
+  case "$MODE" in
+    3|2a)
+      info "Generating page via AI API..."
+      echo ""
+      set +e
+      node generate.js --run "$BRIEF_PATH"
+      GEN_EXIT=$?
+      set -e
+
+      if [[ "$GEN_EXIT" -eq 1 ]]; then
+        # Total failure — generate.js already printed the reason
+        echo ""
+        echo -e "  ${DIM}Fix the issue above, then retry: ./run.sh --brief $BRIEF_PATH${RESET}"
+        echo ""
+        exit 1
+      elif [[ "$GEN_EXIT" -eq 2 ]]; then
+        # Partial failure — sections were generated but some failed
+        echo ""
+        warn "Some sections failed. The page has been written with placeholders."
+        echo ""
+        echo "  Options:"
+        echo "  1) Continue — preview the partial page and decide from there"
+        echo "  2) Retry    — re-run generation now (./run.sh --brief will restart)"
+        echo "  3) Abort"
+        echo ""
+        echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+        read -r PARTIAL_CHOICE
+        case "$PARTIAL_CHOICE" in
+          2)
+            echo ""
+            dim "  Re-running generation..."
+            set +e
+            node generate.js --run "$BRIEF_PATH"
+            GEN_EXIT=$?
+            set -e
+            [[ "$GEN_EXIT" -eq 1 ]] && { echo ""; echo -e "  ${DIM}Fix the issue above, then retry: ./run.sh --brief $BRIEF_PATH${RESET}"; echo ""; exit 1; }
+            ;;
+          3)
+            echo "  Aborted. Resume with: ./run.sh --brief $BRIEF_PATH"
+            exit 0
+            ;;
+          *)
+            dim "  Continuing with partial page..."
+            ;;
+        esac
+      fi
       echo ""
       ok "Page generated → $OUTPUT_FILE"
-    else
-      fail "generate.js failed. Check ANTHROPIC_API_KEY in .env and try again."
-    fi
-    ;;
+      ;;
 
-  2b|1)
-    echo ""
-    bash codegen.sh "$BRIEF_PATH"
+    2b|1)
+      echo ""
+      bash codegen.sh "$BRIEF_PATH"
+      ;;
+  esac
+fi
 
-    if [[ ! -f "$OUTPUT_FILE" ]]; then
-      fail "Page not saved at $OUTPUT_FILE. Run ./run.sh --brief $BRIEF_PATH to try again."
-    fi
-    ok "Page ready → $OUTPUT_FILE"
-    ;;
-esac
+# Fix 2 — output validation (catches empty shells for all modes)
+validate_output "$OUTPUT_FILE"
+ok "Page ready → $OUTPUT_FILE"
 
 # ── Preview ───────────────────────────────────────────────────────────────────
 echo ""
 ABS_PATH="$(cd "$(dirname "$OUTPUT_FILE")" && pwd)/$(basename "$OUTPUT_FILE")"
 echo -e "  ${BOLD}Preview your page before deploying:${RESET}"
-echo -e "  ${DIM}file://$ABS_PATH${RESET}"
+echo -e "  ${DIM}open \"$ABS_PATH\"${RESET}"
+echo -e "  ${DIM}or: file://$ABS_PATH${RESET}"
 echo ""
+echo -e "  Looks good? (Y/n)"
 echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
 read -r LOOKS_GOOD
 
 if [[ "$LOOKS_GOOD" =~ ^[Nn]$ ]]; then
   echo ""
-  echo "  No problem — edit your brief and re-run:"
+  echo "  No problem. Your page is saved — edit your brief and re-run:"
   echo ""
   case "$MODE" in
     3|2a) echo "  node generate.js --run $BRIEF_PATH" ;;
     2b|1) echo "  ./codegen.sh $BRIEF_PATH" ;;
   esac
   echo ""
-  echo "  Or re-run the full flow: ./run.sh --brief $BRIEF_PATH"
+  echo "  Or restart the full flow: ./run.sh --brief $BRIEF_PATH"
   echo ""
   exit 0
 fi
@@ -428,15 +551,51 @@ echo ""
 
 case "$MODE" in
   3)
+    # Fix 4 — pre-deploy gate
+    echo -e "  ${BOLD}This will publish your page live.${RESET}"
+    DEPLOY_URL_DISPLAY="${DEPLOY_URL_PREVIEW:-https://${VERCEL_PROJECT}.vercel.app/${BRIEF_SLUG}}"
+    echo -e "  URL: ${DIM}${DEPLOY_URL_DISPLAY}${RESET}"
+    echo ""
+    echo -e "  Ready to go live? (y/N)"
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r DEPLOY_CONFIRM
+    if [[ ! "$DEPLOY_CONFIRM" =~ ^[Yy]$ ]]; then
+      echo ""
+      echo "  Not deployed. Your page is saved locally:"
+      echo "  $OUTPUT_FILE"
+      echo ""
+      echo "  Deploy whenever you're ready: node generate.js --deploy $BRIEF_PATH"
+      echo ""
+      exit 0
+    fi
+    echo ""
     info "Deploying via Vercel..."
     echo ""
-    node generate.js --publish "$BRIEF_PATH" || fail "Deploy failed. Check VERCEL_TOKEN in .env."
+    node generate.js --publish "$BRIEF_PATH" || { echo ""; fail "Deploy failed. Check VERCEL_TOKEN in .env and try: node generate.js --deploy $BRIEF_PATH"; }
     ;;
 
   2b)
+    # Fix 4 — pre-deploy gate
+    echo -e "  ${BOLD}This will publish your page live.${RESET}"
+    DEPLOY_URL_DISPLAY="${DEPLOY_URL_PREVIEW:-https://${VERCEL_PROJECT}.vercel.app/${BRIEF_SLUG}}"
+    echo -e "  URL: ${DIM}${DEPLOY_URL_DISPLAY}${RESET}"
+    echo ""
+    echo -e "  Ready to go live? (y/N)"
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r DEPLOY_CONFIRM
+    if [[ ! "$DEPLOY_CONFIRM" =~ ^[Yy]$ ]]; then
+      echo ""
+      echo "  Not deployed. Your page is saved locally:"
+      echo "  $OUTPUT_FILE"
+      echo ""
+      echo "  Deploy whenever you're ready: node generate.js --deploy $BRIEF_PATH"
+      echo ""
+      exit 0
+    fi
+    echo ""
     info "Deploying via Vercel..."
     echo ""
-    node generate.js --deploy "$BRIEF_PATH" || fail "Deploy failed. Check VERCEL_TOKEN in .env."
+    node generate.js --deploy "$BRIEF_PATH" || { echo ""; fail "Deploy failed. Check VERCEL_TOKEN in .env and try: node generate.js --deploy $BRIEF_PATH"; }
     ;;
 
   2a|1)
@@ -444,7 +603,7 @@ case "$MODE" in
     echo ""
     echo -e "  ${BOLD}Netlify drop${RESET} (free, no account needed)"
     echo "  → https://app.netlify.com/drop"
-    echo "  → Drag your output/$SLUG/ folder in"
+    echo "  → Drag your output/$BRIEF_SLUG/ folder in"
     echo ""
     echo -e "  ${BOLD}GitHub Pages, Cloudflare Pages, or any static host${RESET}"
     echo "  → The output is a single self-contained index.html"

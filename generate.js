@@ -639,8 +639,16 @@ Generate the HTML first — either:
   Option 3 (auto):   node generate.js --run ${briefArg}`);
     }
 
+    // Pre-deploy validation — catch empty shells before they go live
+    const fileSizeKB = Math.round(fs.statSync(outputFile).size / 1024);
+    if (fileSizeKB < 5) {
+      fail(`output/${plan.slug}/index.html is only ${fileSizeKB}KB — likely an empty or broken page.
+Regenerate before deploying:
+  node generate.js --run ${briefArg}`);
+    }
+
     const htmlContent = fs.readFileSync(outputFile, 'utf8');
-    ok(`Page loaded from output/${plan.slug}/index.html`);
+    ok(`Page loaded from output/${plan.slug}/index.html (${fileSizeKB}KB)`);
 
     try {
       const liveUrl = await publisher(plan.slug, htmlContent);
@@ -693,6 +701,8 @@ Generate the HTML first — either:
 
   // ── Module 4: Codegen ────────────────────────────────────────────────────
   const sectionOutputs = [];
+  const failedSections = [];
+  const succeededSections = [];
 
   for (const section of plan.sections) {
     info(`Generating: ${section.id}`);
@@ -706,11 +716,46 @@ Generate the HTML first — either:
         plan
       );
       sectionOutputs.push(html);
+      succeededSections.push(section.id);
       ok(`  ${section.id} done`);
     } catch (e) {
       warn(`  ${section.id} failed: ${e.message}`);
+      failedSections.push({ id: section.id, error: e.message });
       sectionOutputs.push(`<!-- ${section.id}: generation failed — ${e.message} -->`);
     }
+  }
+
+  // Determine generation outcome
+  const totalSections   = plan.sections.length;
+  const allFailed       = failedSections.length === totalSections;
+  const partialFailure  = failedSections.length > 0 && !allFailed;
+
+  if (allFailed) {
+    console.error('');
+    console.error(`${RED}✗${RESET} All ${totalSections} sections failed. Page not written.`);
+    console.error('');
+    console.error('  Common causes:');
+    console.error('  • Wrong AI model — check AI_MODEL in .env matches your account');
+    console.error('  • Invalid or expired API key');
+    console.error('  • API rate limit or quota exceeded');
+    console.error('');
+    console.error(`  First error: ${failedSections[0].error}`);
+    console.error('');
+    console.error('  Fix your .env, then retry:');
+    console.error(`  ${BOLD}node generate.js --run ${briefArg}${RESET}`);
+    process.exit(1);
+  }
+
+  if (partialFailure) {
+    console.error('');
+    warn(`Partial failure — ${failedSections.length} of ${totalSections} sections failed:`);
+    for (const f of failedSections) {
+      console.error(`  ${RED}✗${RESET} ${f.id}: ${f.error}`);
+    }
+    console.error('');
+    warn('Page will be assembled with placeholder comments for failed sections.');
+    warn('Retry with: node generate.js --run ' + briefArg);
+    console.error('');
   }
 
   // ── Module 5: Assembler ──────────────────────────────────────────────────
@@ -722,7 +767,12 @@ Generate the HTML first — either:
   const outputFile = path.join(outputDir, 'index.html');
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(outputFile, fullHtml, 'utf8');
-  ok(`Page assembled → output/${plan.slug}/index.html`);
+
+  const fileSizeKB = Math.round(fs.statSync(outputFile).size / 1024);
+  ok(`Page assembled → output/${plan.slug}/index.html (${fileSizeKB}KB)`);
+
+  // Exit 2 for partial failure — run.sh uses this to show recovery options
+  if (partialFailure) process.exitCode = 2;
 
   // ── Module 6: Publisher ──────────────────────────────────────────────────
   if (publish) {

@@ -111,6 +111,8 @@ Step 2 is the only real work — but the AI does the heavy lifting. You paste yo
 
 Total per application once set up: **~15–20 min**
 
+If anything goes wrong during generation, FORA pauses and gives you recovery options — it never fails silently. Add a few minutes for any retry.
+
 ---
 
 ## Before you start
@@ -380,6 +382,18 @@ Options 1 + 2 (manual codegen): the script copies the full codegen prompt + brie
 
 ---
 
+**If a page already exists for this brief**, FORA will detect it and ask:
+```
+A page already exists for this brief (42KB)
+1) Use existing page — skip to preview and deploy
+2) Regenerate — overwrite with a fresh generation
+```
+Choose 1 to go straight to preview without re-running codegen. Useful if you just want to re-deploy after tweaking a brief manually.
+
+**If generation partially fails** (some sections succeed, some don't), FORA writes the page with placeholder comments for the failed sections and gives you three choices: continue with the partial page, retry generation, or abort. You'll see exactly which sections failed and why.
+
+---
+
 **You should now have:**
 ```
 ✓ output/[company]/index.html
@@ -394,7 +408,17 @@ If you used `./run.sh`, deploy is handled at the end of the flow automatically b
 
 **Auto deploy via Vercel (options 2 + 4):**
 
-In your terminal — replace `[company]` with your brief filename:
+Before deploying, FORA will show you the exact URL and ask for confirmation:
+```
+This will publish your page live.
+URL: https://meet-shah.vercel.app/nola
+
+Ready to go live? (y/N)
+```
+
+The default is N — so if you accidentally press Enter, nothing goes live. Type `y` to proceed.
+
+If you're deploying manually (outside of `./run.sh`):
 ```bash
 node generate.js --deploy briefs/[company].json
 ```
@@ -517,17 +541,40 @@ Your personal files (`profile.json`, `briefs/`, `output/`, `.env`) are gitignore
 ```
 Running setup.sh automatically fixes permissions on all scripts.
 
-**generate.js fails with API error**
+**All sections fail with a 404 or model error**
 
-Check your AI key in `.env` (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`). Make sure there are no extra spaces or quotes. Run `./run.sh status` to confirm which key is detected.
+You'll see something like:
+```
+✗ All 6 sections failed. Page not written.
+  First error: Gemini API error 404: This model is no longer available...
+```
+This means the model in your `.env` is wrong or deprecated. Open `.env` and check `AI_MODEL`. For Gemini, use `gemini-2.0-flash`. Delete the `AI_MODEL=` line entirely to fall back to the provider default. Then retry:
+```bash
+./run.sh --brief briefs/[company].json
+```
+
+**Some sections fail, some succeed**
+
+You'll see a partial failure warning with a choice to continue, retry, or abort. If you continue, the page is written with placeholder HTML comments for the failed sections — open it in a browser and you'll see which sections are missing. Retry is usually the right call unless you want to fix the brief first.
+
+**Page generated but looks empty or wrong**
+
+FORA checks file size after generation — if it's under 5KB it blocks and tells you. If it passes the size check but looks off, open it in a browser and inspect for placeholder comments (`<!-- section X: generation failed -->`). Those sections need to be regenerated.
+
+**generate.js fails with an API key error**
+
+Check your key in `.env` — make sure there are no extra spaces, quotes, or line breaks. Run `./run.sh status` to confirm which key FORA is detecting and which model is active.
 
 **Vercel deploy fails**
 
-Open `.env` in any text editor and check `VERCEL_TOKEN` and `VERCEL_PROJECT_NAME`. Your Vercel project must exist before the first deploy.
+Open `.env` and check `VERCEL_TOKEN` and `VERCEL_PROJECT_NAME`. The project name must match exactly what's in your Vercel dashboard. Your Vercel project must exist before the first deploy — create it at [vercel.com/new](https://vercel.com/new).
 
 **The page looks unstyled**
 
-Check that `design-system/default.md` exists. It ships with the repo — if it's missing, re-clone or restore it from git.
+Check that `design-system/default.md` exists. It ships with the repo — if it's missing, restore it:
+```bash
+git checkout design-system/default.md
+```
 
 **brainstorm.sh fetched an empty or broken JD**
 

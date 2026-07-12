@@ -297,15 +297,15 @@ if ! $CHECK_ONLY; then
           ANTHROPIC_KEY=""; OPENAI_KEY=""
           echo ""
           echo -e "  Which model? Press Enter for the default."
-          echo -e "  ${DIM}1) gemini-2.5-flash    (recommended — fast, strong instruction-following)${RESET}"
+          echo -e "  ${DIM}1) gemini-2.0-flash    (recommended — fast, widely available)${RESET}"
           echo -e "  ${DIM}2) gemini-2.5-pro      (slower, highest quality)${RESET}"
-          echo -e "  ${DIM}3) gemini-2.0-flash    (default — slightly older but very fast)${RESET}"
+          echo -e "  ${DIM}3) gemini-2.5-flash    (fast + strong — check availability for your account)${RESET}"
           echo -e "  ${DIM}4) Custom — type a model name${RESET}"
           read -r MODEL_CHOICE
           case "$MODEL_CHOICE" in
-            1)    NEW_MODEL="gemini-2.5-flash" ;;
+            1|"") NEW_MODEL="gemini-2.0-flash" ;;
             2)    NEW_MODEL="gemini-2.5-pro" ;;
-            3|"") NEW_MODEL="gemini-2.0-flash" ;;
+            3)    NEW_MODEL="gemini-2.5-flash" ;;
             4)    echo -e "  Model name:"; read -r NEW_MODEL ;;
             *)    NEW_MODEL="$MODEL_CHOICE" ;;
           esac
