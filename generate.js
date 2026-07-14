@@ -534,14 +534,43 @@ async function publisher(slug, htmlContent) {
 
   info('Deploying to Vercel...');
 
-  // Create a deployment via Vercel API
-  const files = [
-    {
-      file:     `${slug}/index.html`,
-      data:     Buffer.from(htmlContent).toString('base64'),
-      encoding: 'base64',
-    },
-  ];
+  // Build full file list: current page + all previously deployed pages.
+  // Each deploy must include ALL files — Vercel replaces the entire deployment.
+  const files = [];
+
+  // Load previously deployed slugs from applications.json
+  const appsPath = path.join(__dirname, 'applications', 'applications.json');
+  const prevApps = fs.existsSync(appsPath)
+    ? JSON.parse(fs.readFileSync(appsPath, 'utf8'))
+    : [];
+
+  // Add previously deployed pages (read their HTML from output/)
+  const deployedSlugs = new Set();
+  for (const app of prevApps) {
+    if (!app.slug || app.slug === slug) continue;
+    const prevHtmlPath = path.join(__dirname, 'output', app.slug, 'index.html');
+    if (fs.existsSync(prevHtmlPath) && !deployedSlugs.has(app.slug)) {
+      files.push({
+        file:     `${app.slug}/index.html`,
+        data:     Buffer.from(fs.readFileSync(prevHtmlPath, 'utf8')).toString('base64'),
+        encoding: 'base64',
+      });
+      deployedSlugs.add(app.slug);
+    }
+  }
+
+  // Add current page
+  files.push({
+    file:     `${slug}/index.html`,
+    data:     Buffer.from(htmlContent).toString('base64'),
+    encoding: 'base64',
+  });
+  deployedSlugs.add(slug);
+
+  // Build routes so /<slug> and /<slug>/ both resolve to /<slug>/index.html
+  const routes = [...deployedSlugs].map(s => ({
+    src: `/${s}/?`, dest: `/${s}/index.html`,
+  }));
 
   const deployPayload = JSON.stringify({
     name:   projectName,
@@ -551,6 +580,7 @@ async function publisher(slug, htmlContent) {
       framework: null,
       outputDirectory: '.',
     },
+    routes,
   });
 
   const res = await fetchUrl('https://api.vercel.com/v13/deployments', {
