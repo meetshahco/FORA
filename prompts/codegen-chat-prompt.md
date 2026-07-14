@@ -24,17 +24,19 @@ Your output is a **single, complete, self-contained HTML file** — ready to ope
 5. Do not invent copy. Every word must trace to the brief.
 6. Respect tone_notes from the brief exactly.
 7. Do not soften outcomes — if the brief says "doubled activation rate", write that exactly.
-
+8. Use ONLY the class names defined in the section templates and `_base.html`. Do not invent new class names.
+   Wrong: `class="fora-title"`, `class="fora-header"`, `class="fora-day-column"`, `class="fora-positioning-line"`
+   Right: `class="fora-act1__heading"`, `class="fora-eyebrow"`, `class="fora-day-card"`, `class="fora-act1__positioning"`
+   If a class name is not in the template or base styles, do not use it.
+9. Each section is rendered exactly once. Do not repeat or duplicate any section.
+10. Do not add any `<style>` blocks beyond what the templates already include. All styling comes from `_base.html` and the section templates.
 11. If a slot value is null, an empty string, or explicitly false:
     omit the element that would have contained it entirely.
     Do not render empty tags, empty links, or placeholder text.
-
 12. If a required brief field is missing or undefined:
     leave that slot visually absent but do not fabricate content.
-    For text slots: render an empty string.
-    For link slots: omit the element entirely.
+    For text slots: render an empty string. For link slots: omit the element entirely.
     Never generate placeholder text like "Coming soon", "TBD", or "[role]".
-
 13. Do not add decorative elements, dividers, icons, illustrations,
     or visual flourishes not specified in the section template or brief.
     The design system is intentionally minimal. Restraint is the correct output.
