@@ -72,20 +72,44 @@ paste_from_clipboard() {
 }
 
 # ── Derive slug from URL ─────────────────────────────────────────────────────
-# Extracts the domain name only (e.g. "remote", "notion", "linear")
-# Avoids job ID numbers and path noise like /openings/7762220003
+# Extracts a filename-safe slug from the job URL.
+# For job-board URLs (linkedin, greenhouse, lever, workday, indeed, ashby, breezy,
+# bamboohr, smartrecruiters, recruitee, jobvite) we use "job-<id>" so the file
+# isn't misleadingly named after the board. For company-hosted URLs we use the
+# domain (e.g. "notion", "linear"). The actual company name in _meta.company is
+# set by the AI from JD content — this slug is only used as a temp filename.
+JOB_BOARD_DOMAINS="linkedin|greenhouse|lever|workday|indeed|ashby|breezy|bamboohr|smartrecruiters|recruitee|jobvite|myworkdayjobs"
+
 derive_slug() {
   local url="$1"
-  # Strip protocol explicitly for macOS sed compatibility
+  # Strip protocol
   url="${url#http://}"
   url="${url#https://}"
   url="${url#www.}"
   # Extract domain only (first segment before first /)
   local domain="${url%%/*}"
-  # Extract company name (second-to-last dot segment, e.g. "remote" from "remote.com")
+  local domain_lower
+  domain_lower=$(echo "$domain" | tr '[:upper:]' '[:lower:]')
+
+  # Check if this is a job board URL
+  if echo "$domain_lower" | grep -qE "($JOB_BOARD_DOMAINS)"; then
+    # Extract a numeric job ID from the URL path (last run of digits, min 5 chars)
+    local job_id
+    job_id=$(echo "$url" | grep -oE '[0-9]{5,}' | tail -1)
+    if [[ -n "$job_id" ]]; then
+      echo "job-${job_id}"
+    else
+      # No ID found — use board name + timestamp
+      local board
+      board=$(echo "$domain_lower" | awk -F'.' '{if(NF>=2) print $(NF-1); else print $1}')
+      echo "${board}-$(date +%s)"
+    fi
+    return
+  fi
+
+  # Company-hosted URL — extract domain name as before
   local slug
   slug=$(echo "$domain" | awk -F'.' '{if(NF>=2) print $(NF-1); else print $1}')
-  # Sanitise
   slug=$(echo "$slug" | sed 's/[^a-zA-Z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | tr '[:upper:]' '[:lower:]')
   echo "$slug"
 }
@@ -133,7 +157,7 @@ save_brief() {
   # Check if brief already exists and ask what to do
   if [[ -f "$brief_path" ]]; then
     echo ""
-    warn "A brief for this company already exists: briefs/${slug}.json"
+    warn "A brief file already exists: briefs/${slug}.json"
     echo ""
     echo "  What would you like to do?"
     echo "  1) Overwrite it with a new brief"
