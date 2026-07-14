@@ -285,15 +285,28 @@ function dsLoader(brief) {
   const content = fs.readFileSync(dsPath, 'utf8');
 
   // Extract the CSS tokens block from default.md.
-  // Looks for the FIRST fenced ```css block — keep all your token declarations
-  // in a single ```css block in default.md. Multiple blocks: only the first is read.
-  const tokenMatch = content.match(/```css[^\n]*\n([\s\S]*?)```/);
-  if (tokenMatch) return tokenMatch[1].trim();
+  // Finds the first fenced ```css block that contains actual CSS custom properties (--)
+  // rather than comment-only blocks. Returns only the property declarations —
+  // the assembler wraps them in :root {}.
+  // Find a ```css fenced block at the START of a line (not inside a comment)
+  // that contains a :root { } declaration — that's the token block.
+  // Using ^```css with multiline flag ensures we don't match ``` inside HTML comments.
+  const cssBlockRe = /^```css\n([\s\S]*?)^```/gm;
+  let tokenMatch;
+  let tokenBlock = null;
+  while ((tokenMatch = cssBlockRe.exec(content)) !== null) {
+    if (/:root\s*\{/.test(tokenMatch[1])) { tokenBlock = tokenMatch[1].trim(); break; }
+  }
+  if (tokenBlock) {
+    // Strip the :root { } wrapper — assembler adds it
+    const innerMatch = tokenBlock.match(/:root\s*\{([\s\S]*)\}/);
+    if (innerMatch) return innerMatch[1].trim();
+    return tokenBlock;
+  }
 
   // Fallback: look for first :root { ... } block directly.
-  // Same rule applies — keep all custom properties in a single :root block.
   const rootMatch = content.match(/:root\s*\{([\s\S]*?)\}/);
-  if (rootMatch) return `:root {\n${rootMatch[1]}\n}`;
+  if (rootMatch) return rootMatch[1].trim();
 
   warn(`Could not extract CSS tokens from design-system/default.md. Using base defaults.`);
   return '';
