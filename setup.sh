@@ -221,24 +221,75 @@ else
   dim "  No Vercel token — manual deploy only (Netlify drop or any static host)"
 fi
 
-# ── Conversational key setup (skip if --check) ──────────────────────────────
+# ── Settings menu (skip if --check) ─────────────────────────────────────────
 if ! $CHECK_ONLY; then
 
-  # Only prompt if no keys exist OR user is on a re-run and things changed
-  NEEDS_SETUP=false
-  [[ ! -f "$ENV_FILE" ]] && NEEDS_SETUP=true
+  echo ""
+  echo "──────────────────────────────────────────────────────"
 
-  if [[ "$NEEDS_SETUP" == false ]]; then
-    echo ""
-    echo -e "  ${DIM}Update or add API keys? (y/N)${RESET}"
-    read -r DO_SETUP
-    [[ "$DO_SETUP" =~ ^[Yy]$ ]] && NEEDS_SETUP=true
+  # Build a context-aware top-level menu based on current state
+  # Each option shows what's set and what can be changed
+
+  MENU_ITEMS=()
+  MENU_ACTIONS=()
+
+  # AI options
+  if [[ "$HAS_AI" == true ]]; then
+    MODEL_DISPLAY="${AI_MODEL_SET:-default}"
+    MENU_ITEMS+=("Change AI model           ${DIM}current: ${AI_PROVIDER_NAME} · ${MODEL_DISPLAY}${RESET}")
+    MENU_ACTIONS+=("ai_model_only")
+    MENU_ITEMS+=("Switch AI provider / key  ${DIM}current: ${AI_PROVIDER_NAME}${RESET}")
+    MENU_ACTIONS+=("ai_full")
+  else
+    MENU_ITEMS+=("Add AI key                ${DIM}unlocks auto codegen (options 3 + 4)${RESET}")
+    MENU_ACTIONS+=("ai_full")
   fi
+
+  # Vercel options
+  if [[ "$HAS_VERCEL" == true ]]; then
+    CURRENT_PROJECT="${VERCEL_PROJECT:-$SUGGESTED_PROJECT}"
+    if [[ -n "$DEPLOY_DOMAIN" ]]; then
+      URL_DISPLAY="$DEPLOY_DOMAIN"
+    else
+      URL_DISPLAY="${CURRENT_PROJECT}.vercel.app"
+    fi
+    MENU_ITEMS+=("Change deploy URL         ${DIM}current: ${URL_DISPLAY}/[company]${RESET}")
+    MENU_ACTIONS+=("vercel_url")
+    MENU_ITEMS+=("Replace Vercel token      ${DIM}token already set${RESET}")
+    MENU_ACTIONS+=("vercel_token")
+  else
+    MENU_ITEMS+=("Add Vercel token          ${DIM}unlocks auto deploy (options 2 + 4)${RESET}")
+    MENU_ACTIONS+=("vercel_full")
+  fi
+
+  MENU_ITEMS+=("Nothing — exit setup")
+  MENU_ACTIONS+=("exit")
+
+  # If no .env yet, skip the menu and go straight to full setup
+  if [[ ! -f "$ENV_FILE" ]]; then
+    CHOSEN_ACTION="first_run"
+  else
+    echo -e "  ${BOLD}What do you want to do?${RESET}"
+    echo ""
+    for i in "${!MENU_ITEMS[@]}"; do
+      echo -e "  $((i+1))) ${MENU_ITEMS[$i]}"
+    done
+    echo ""
+    echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+    read -r MENU_CHOICE
+    # Validate and map to action
+    if [[ "$MENU_CHOICE" =~ ^[0-9]+$ ]] && (( MENU_CHOICE >= 1 && MENU_CHOICE <= ${#MENU_ACTIONS[@]} )); then
+      CHOSEN_ACTION="${MENU_ACTIONS[$((MENU_CHOICE-1))]}"
+    else
+      CHOSEN_ACTION="exit"
+    fi
+  fi
+
+  NEEDS_SETUP=false
+  [[ "$CHOSEN_ACTION" != "exit" ]] && NEEDS_SETUP=true
 
   if [[ "$NEEDS_SETUP" == true ]]; then
     echo ""
-    echo -e "${BOLD}──────────────────────────────────────────────────${RESET}"
-    echo -e "${BOLD}Key setup${RESET}"
     echo -e "${BOLD}──────────────────────────────────────────────────${RESET}"
 
     # ── Question 1: AI ────────────────────────────────────────────────────────
@@ -361,57 +412,6 @@ if ! $CHECK_ONLY; then
     NEW_GEMINI=""
     NEW_OPENAI=""
     NEW_MODEL=""
-
-    echo ""
-    if [[ "$HAS_AI" == true ]]; then
-      CURRENT_MODEL_DISPLAY="${AI_MODEL_SET:-default}"
-      echo -e "  AI key set — ${BOLD}${AI_PROVIDER_NAME}${RESET} · model: ${DIM}${CURRENT_MODEL_DISPLAY}${RESET}"
-      echo ""
-      echo "  What do you want to change?"
-      echo "  1) Switch provider   — change to a different AI provider"
-      echo "  2) Replace key       — new key, same provider (${AI_PROVIDER_NAME})"
-      echo "  3) Change model only — keep key, pick a different model"
-      echo "  4) Keep as-is"
-      echo ""
-      echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-      read -r AI_CHOICE
-      case "$AI_CHOICE" in
-        1) ask_provider_choice ;;
-        2)
-          case "$(echo "$AI_PROVIDER_NAME" | tr '[:upper:]' '[:lower:]')" in
-            anthropic) ask_key_for_provider "anthropic" ;;
-            gemini)    ask_key_for_provider "gemini" ;;
-            openai)    ask_key_for_provider "openai" ;;
-          esac
-          ;;
-        3)
-          case "$(echo "$AI_PROVIDER_NAME" | tr '[:upper:]' '[:lower:]')" in
-            anthropic) ask_model_for_provider "anthropic" ;;
-            gemini)    ask_model_for_provider "gemini" ;;
-            openai)    ask_model_for_provider "openai" ;;
-          esac
-          ;;
-        4|*)
-          ok "Keeping existing ${AI_PROVIDER_NAME} key and model"
-          ;;
-      esac
-    else
-      echo "  No AI key set — options 3 + 4 unavailable without one."
-      echo -e "  ${DIM}You can always generate in AI chat for free (options 1 + 2).${RESET}"
-      echo ""
-      echo "  1) Add an AI key"
-      echo "  2) Skip for now"
-      echo ""
-      echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-      read -r AI_CHOICE
-      case "$AI_CHOICE" in
-        1) ask_provider_choice ;;
-        *) dim "  Skipping — options 1 and 2 will always be available." ;;
-      esac
-    fi
-
-    # ── Question 2: Vercel ─────────────────────────────────────────────────
-
     NEW_VERCEL=""
     NEW_PROJECT="${VERCEL_PROJECT:-$SUGGESTED_PROJECT}"
     NEW_DOMAIN="${DEPLOY_DOMAIN}"
@@ -453,62 +453,92 @@ if ! $CHECK_ONLY; then
       fi
     }
 
-    echo ""
-    if [[ "$HAS_VERCEL" == true ]]; then
-      CURRENT_PROJECT="${VERCEL_PROJECT:-$SUGGESTED_PROJECT}"
-      if [[ -n "$DEPLOY_DOMAIN" ]]; then
-        echo -e "  Vercel set — deploy URL: ${DIM}https://${DEPLOY_DOMAIN}/[company]${RESET}"
-      else
-        echo -e "  Vercel set — deploy URL: ${DIM}https://${CURRENT_PROJECT}.vercel.app/[company]${RESET}"
-      fi
+    # Helper: ask Vercel token only
+    ask_vercel_token() {
       echo ""
-      echo "  What do you want to change?"
-      echo "  1) Replace token      — paste a new Vercel token"
-      echo "  2) Change project name — update your URL slug"
-      echo "  3) Change custom domain — add, update, or remove"
-      echo "  4) Keep as-is"
-      echo ""
-      echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-      read -r VERCEL_CHOICE
-      case "$VERCEL_CHOICE" in
-        1)
-          echo ""
-          echo -e "  Paste your new Vercel token:"
-          read -r NEW_VERCEL
-          if [[ -n "$NEW_VERCEL" ]]; then
-            ok "Vercel token received"
-            ask_project_name
-            ask_custom_domain
-          fi
-          ;;
-        2) ask_project_name ;;
-        3) ask_custom_domain ;;
-        4|*) ok "Keeping existing Vercel config" ;;
-      esac
-    else
-      echo "  No Vercel token — auto deploy unavailable (options 2 + 4)."
-      echo -e "  ${DIM}Gets you a permanent live URL in one command. Free tier works.${RESET}"
-      echo -e "  ${DIM}Get a token at: vercel.com/account/tokens${RESET}"
-      echo ""
-      echo "  1) Add Vercel token"
-      echo "  2) Skip — I'll deploy manually"
-      echo ""
-      echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
-      read -r VERCEL_CHOICE
-      case "$VERCEL_CHOICE" in
-        1)
-          echo ""
-          echo -e "  Paste your Vercel token:"
-          read -r NEW_VERCEL
-          if [[ -n "$NEW_VERCEL" ]]; then
-            ok "Vercel token received"
-            ask_project_name
-            ask_custom_domain
-          fi
-          ;;
-        *) dim "  Skipping — you can drag your output/ folder to netlify.com/drop anytime." ;;
-      esac
-    fi
+      echo -e "  Paste your Vercel token:"
+      echo -e "  ${DIM}Get one at: vercel.com/account/tokens${RESET}"
+      read -r NEW_VERCEL
+      [[ -n "$NEW_VERCEL" ]] && ok "Vercel token received"
+    }
+
+    case "$CHOSEN_ACTION" in
+
+      first_run)
+        # New user — walk through AI then Vercel sequentially
+        echo -e "  ${BOLD}Step 1: AI setup${RESET}"
+        echo ""
+        echo "  Which AI provider?"
+        echo "  1) Anthropic Claude  — console.anthropic.com/settings/keys"
+        echo "  2) Google Gemini     — aistudio.google.com/app/apikey"
+        echo "  3) OpenAI            — platform.openai.com/api-keys"
+        echo "  4) Skip — I'll use manual codegen (options 1 + 2)"
+        echo ""
+        echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+        read -r PROV_CHOICE
+        case "$PROV_CHOICE" in
+          1) ask_key_for_provider "anthropic" ;;
+          2) ask_key_for_provider "gemini" ;;
+          3) ask_key_for_provider "openai" ;;
+          *) dim "  Skipping AI — options 1 and 2 are always available." ;;
+        esac
+        echo ""
+        echo -e "  ${BOLD}Step 2: Vercel setup${RESET}"
+        echo -e "  ${DIM}Gets you a permanent live URL in one command. Free tier works.${RESET}"
+        echo ""
+        echo "  1) Add Vercel token"
+        echo "  2) Skip — I'll deploy manually"
+        echo ""
+        echo -e "  ${DIM}(Ctrl+C to exit)${RESET}"
+        read -r VERCEL_CHOICE
+        case "$VERCEL_CHOICE" in
+          1)
+            ask_vercel_token
+            if [[ -n "$NEW_VERCEL" ]]; then
+              ask_project_name
+              ask_custom_domain
+            fi
+            ;;
+          *) dim "  Skipping — you can drag your output/ folder to netlify.com/drop anytime." ;;
+        esac
+        ;;
+
+      ai_model_only)
+        # Keep existing key, just change model
+        CURRENT_PROV=$(echo "$AI_PROVIDER_NAME" | tr '[:upper:]' '[:lower:]')
+        ask_model_for_provider "$CURRENT_PROV"
+        ;;
+
+      ai_full)
+        # Full provider + key + model
+        ask_provider_choice
+        ;;
+
+      vercel_token)
+        # Replace token only, keep project name + domain
+        ask_vercel_token
+        ;;
+
+      vercel_url)
+        # Change project name and/or custom domain, keep token
+        ask_project_name
+        ask_custom_domain
+        ;;
+
+      vercel_full)
+        # New Vercel user — token + project + domain
+        ask_vercel_token
+        if [[ -n "$NEW_VERCEL" ]]; then
+          ask_project_name
+          ask_custom_domain
+        fi
+        ;;
+
+      exit)
+        dim "  Nothing changed."
+        ;;
+
+    esac
 
     # ── Write .env ─────────────────────────────────────────────────────────
     FINAL_ANTHROPIC="${NEW_ANTHROPIC:-$ANTHROPIC_KEY}"
