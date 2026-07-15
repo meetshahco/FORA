@@ -258,6 +258,80 @@ save_brief() {
   echo ""
 }
 
+# ── Template picker ──────────────────────────────────────────────────────────
+pick_template() {
+  local brief_path="$1"
+
+  echo ""
+  echo -e "${BOLD}──────────────────────────────────────────────────${RESET}"
+  echo -e "${BOLD}Choose a page template${RESET}"
+  echo -e "${BOLD}──────────────────────────────────────────────────${RESET}"
+  echo ""
+  echo -e "  ${BOLD}1) three-act${RESET}  ${DIM}(default)${RESET}"
+  echo -e "     Who I Am → Work → First 90 Days → CTA"
+  echo -e "     ${DIM}Best for: most roles. Identity leads, work follows.${RESET}"
+  echo ""
+  echo -e "  ${BOLD}2) work-first${RESET}"
+  echo -e "     Work → Who I Am → First 90 Days → CTA"
+  echo -e "     ${DIM}Best for: craft-focused roles, engineering cultures, strong case studies.${RESET}"
+  echo ""
+  echo -e "  ${BOLD}3) single-statement${RESET}"
+  echo -e "     One positioning line → One case study → First 90 Days → CTA"
+  echo -e "     ${DIM}Best for: minimal brands, leadership roles, when one story outweighs a list.${RESET}"
+  echo ""
+
+  # Offer to open previews if examples exist
+  local examples_dir="$SCRIPT_DIR/examples"
+  if [[ -f "$examples_dir/alex-rivera/output/index.html" ]] || \
+     [[ -f "$examples_dir/alex-rivera-work-first/output/index.html" ]]; then
+    echo -e "  ${DIM}Want to preview the templates in your browser first? (y/n)${RESET}"
+    read -r preview_choice
+    if [[ "$preview_choice" == "y" || "$preview_choice" == "Y" ]]; then
+      [[ -f "$examples_dir/alex-rivera/output/index.html" ]] && \
+        open "$examples_dir/alex-rivera/output/index.html"
+      [[ -f "$examples_dir/alex-rivera-work-first/output/index.html" ]] && \
+        open "$examples_dir/alex-rivera-work-first/output/index.html"
+      [[ -f "$examples_dir/alex-rivera-single-statement/output/index.html" ]] && \
+        open "$examples_dir/alex-rivera-single-statement/output/index.html"
+      echo ""
+      echo -e "  ${DIM}(Opened in browser — come back here to pick)${RESET}"
+      echo ""
+    fi
+  fi
+
+  echo -e "  Enter 1, 2, or 3 — or press Enter for default (three-act):"
+  read -r template_choice
+
+  local template_id
+  case "${template_choice:-1}" in
+    1|"") template_id="three-act" ;;
+    2)    template_id="work-first" ;;
+    3)    template_id="single-statement" ;;
+    *)
+      warn "Invalid choice — using three-act."
+      template_id="three-act"
+      ;;
+  esac
+
+  # Write template_id into the saved brief
+  local updated
+  updated=$(node -e "
+    const fs = require('fs');
+    const b = JSON.parse(fs.readFileSync('$brief_path', 'utf8'));
+    b._meta.template_id = '$template_id';
+    process.stdout.write(JSON.stringify(b, null, 2));
+  ")
+
+  if [[ -n "$updated" ]]; then
+    printf '%s' "$updated" > "$brief_path"
+    ok "Template set → ${template_id}"
+  else
+    warn "Could not update template_id in brief — defaulting to three-act at runtime."
+  fi
+
+  echo ""
+}
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 main() {
   echo ""
@@ -369,6 +443,10 @@ ASSEMBLED
 
   # Save the brief
   save_brief "$slug"
+
+  # ── Template picker ──────────────────────────────────────────────────────────
+  local brief_path="$BRIEFS_DIR/${slug}.json"
+  pick_template "$brief_path"
 
   # Only offer to continue if running standalone (not called from run.sh)
   if [[ "${FORA_CALLED_FROM_RUN:-}" != "true" ]]; then
