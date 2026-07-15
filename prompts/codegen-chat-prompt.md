@@ -18,6 +18,7 @@ Your output is a **single, complete, self-contained HTML file** — ready to ope
 ## OUTPUT RULES
 
 1. Output only the complete HTML file. Start with `<!DOCTYPE html>` and end with `</html>`. No explanation, no markdown fences around the whole file, no commentary before or after.
+   Your entire response must be exactly one HTML document. Do not output a draft, then a final version. Do not output anything before `<!DOCTYPE html>` or after `</html>`.
 2. Fill every `{{slot_name}}` placeholder in the templates with real content from the brief. No unfilled placeholders in the output.
 3. If a slot value is null, empty, or missing — omit the element entirely. No empty tags, no placeholder text like "TBD" or "[role]".
 4. Do not add sections, elements, or decorative flourishes not in the templates. The templates are final.
