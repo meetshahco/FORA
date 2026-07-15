@@ -411,12 +411,24 @@ async function codegen(sectionId, sectionConfig, brief, profile, dsTokens, plan)
     .replace('{{SECTION_BRIEF}}',   JSON.stringify(sectionBrief, null, 2))
     .replace('{{TEMPLATE_CONFIG}}', templateConfig);
 
-  const html = await callAI(
+  let html = await callAI(
     'You are the FORA code generator. Output only the filled HTML section. No markdown fences. No commentary.',
     fullPrompt
   );
 
-  return html.trim();
+  html = html.trim();
+
+  // Safety net: if the AI output a draft then a corrected version, keep only the last
+  // clean <section> block. Detected by finding the section's opening tag more than once.
+  const sectionTag = `<section class="fora-${sectionId.replace(/_/g, '-').replace('act1-hero','act1').replace('act2-work','act2').replace('act3-bring','act3').replace('direct-cta','cta').replace('signal-cards','signals')}"`;
+  const tagCount = (html.match(new RegExp(sectionTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+  if (tagCount > 1) {
+    warn(`Section "${sectionId}" appears ${tagCount}x in AI output — keeping last occurrence only.`);
+    const lastIdx = html.lastIndexOf(sectionTag);
+    html = html.slice(lastIdx);
+  }
+
+  return html;
 }
 
 // Builds the relevant brief slice for a given section
