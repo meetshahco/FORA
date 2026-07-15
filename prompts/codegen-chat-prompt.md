@@ -45,14 +45,29 @@ Your output is a **single, complete, self-contained HTML file** — ready to ope
 
 ## PAGE STRUCTURE
 
-Assemble sections in this order:
-1. `<head>` — include the base HTML (fonts + reset + DS tokens)
-2. `nav`
-3. `act1_hero`
-4. `act2_work`
-5. `act3_bring`
-6. `direct_cta`
-7. `footer`
+This order is fixed. Do not reorder, skip, or duplicate any section.
+
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{page_title}}</title>
+  <!-- base HTML injected here (fonts, reset, DS tokens) -->
+</head>
+<body>
+  <!-- 1. nav -->
+  <!-- 2. act1_hero -->
+  <!-- 3. act2_work -->
+  <!-- 4. act3_bring -->
+  <!-- 5. direct_cta -->
+  <!-- 6. footer -->
+</body>
+</html>
+```
+
+Every section must appear exactly once, in this exact order. If a section has no content, render it with a minimal fallback — do not skip it or move it.
 
 ---
 
@@ -60,14 +75,14 @@ Assemble sections in this order:
 
 **nav:** The badge renders as `<span class="fora-nav__badge">`. Always include an img tag inside the badge span — fill `src` with the value of `_meta.company_logo_url` from the brief (e.g. `https://logo.clearbit.com/nola.money`) and `alt` with `_meta.company`. Always add `onerror="this.style.display='none'"` so broken images disappear silently. Do not skip this img even if you are unsure the URL works — the onerror handles it. If `static_wrapper.portfolio_url` is null, omit the portfolio link.
 
-**act1_hero:** philosophy_note renders as `<p class="fora-philosophy-note">` — italic, no quotation marks. Signal pills render as `<span class="fora-signal-pill">` inside `.fora-signals-row`.
+**act1_hero:** `philosophy_note` renders as `<p class="fora-act1__philosophy">` — italic, no quotation marks. Signals render as `.fora-signal-card` items inside `.fora-act1__signals` grid. Each signal card: `<div class="fora-signal-card"><span class="fora-signal-card__label">…</span><p class="fora-signal-card__value">…</p></div>`.
 
 **act2_work:** Render one element per work in `works[]`, in order, using `section_format`:
-- `featured_project` → `.fora-work-card` with full treatment: framing_angle as intro, decision, outcome
-- `signal_card` → `.fora-signal-card-inline` with label and value
-- `timeline_entry` → `.fora-timeline-entry` with meta line, decision, outcome
+- `featured_project` → `.fora-work-card` — header with `.fora-work-card__company` + `.fora-work-card__badge`, body with `.fora-work-card__framing`, then `.fora-work-card__label` + `.fora-work-card__decision`, then `.fora-work-card__label` + `.fora-work-card__outcome`
+- `timeline_entry` → `.fora-work-card` with timeline styling (same structure, lighter treatment)
+- `signal_card` → `.fora-signal-card` inside a `.fora-signals__grid`
 
-**act3_bring:** Three columns (day_15, day_30, day_90) inside `.fora-day-grid`. `credibility_anchor` fields are context only — never render them on the page.
+**act3_bring:** Three columns (day_15, day_30, day_90) inside `.fora-act3__grid`. Each column is a `.fora-day-card` with `.fora-day-card__header` (containing `.fora-day-card__label` + `.fora-day-card__title`) and `.fora-day-card__body`. `credibility_anchor` fields are context only — never render them on the page.
 
 **direct_cta:** Dark section — background `var(--color-ink)`, all text white. CTA button: white text, mono font, no fill (transparent background), 1px white border. On hover: rgba(255,255,255,0.1) background. Cold message renders as italic quote in a subdued block.
 
