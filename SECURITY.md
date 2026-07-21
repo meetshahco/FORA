@@ -41,3 +41,15 @@ and confirm that none of the following appear as staged or untracked files:
 - `profile.json`
 - `briefs/*.json` (other than `example-brief.json`)
 - `output/`
+
+---
+
+## Encryption at Rest
+
+Because `profile.json` contains your complete career history and personal data in plain text, you should ensure that your machine is protected.
+
+- **macOS:** Enable **FileVault** in System Settings > Privacy & Security > FileVault.
+- **Windows:** Enable **BitLocker** or device encryption in Settings > Update & Security > Device encryption.
+- **Linux:** Use **LUKS** full-disk encryption.
+
+This prevents unauthorized access to your private profile details if your physical machine is lost or compromised.

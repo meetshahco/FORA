@@ -410,7 +410,7 @@ function resolveMedia(media) {
 // MODULE 4 — CODEGEN
 // Calls AI per section. Returns filled HTML string.
 // ════════════════════════════════════════════════════════════════════════════
-async function codegen(sectionId, sectionConfig, brief, profile, dsTokens, plan) {
+async function codegen(sectionId, sectionConfig, brief, profile, dsTokens, plan, dryRun = false) {
   // Load the section template
   const templatePath = path.join(__dirname, 'templates', 'sections', `${sectionId}.html`);
   if (!fs.existsSync(templatePath)) {
@@ -418,6 +418,152 @@ async function codegen(sectionId, sectionConfig, brief, profile, dsTokens, plan)
     return `<!-- section ${sectionId} skipped: no template found -->`;
   }
   const sectionSpec = fs.readFileSync(templatePath, 'utf8');
+
+  if (dryRun) {
+    let mockHtml = sectionSpec;
+    const replaceSlot = (slotName, value) => {
+      const regex = new RegExp(`\\{\\{\\s*${slotName}\\s*\\}\\}`, 'g');
+      mockHtml = mockHtml.replace(regex, value);
+    };
+
+    if (sectionId === 'nav') {
+      replaceSlot('designer_name', profile.identity?.name || '[designer_name]');
+      replaceSlot('company_name', brief._meta.company || '[company_name]');
+      replaceSlot('portfolio_url', brief.static_wrapper?.nav_portfolio_url || '#');
+      replaceSlot('company_logo_url', brief._meta.company_logo_url || '');
+    } else if (sectionId === 'act1_hero') {
+      replaceSlot('act1_eyebrow', '01 — WHO I AM');
+      replaceSlot('act1_heading', profile.identity?.name || '[designer_name]');
+      replaceSlot('act1_positioning_line', brief.act1_who_i_am?.positioning_line || '[act1_positioning_line]');
+      replaceSlot('act1_philosophy_note', brief.act1_who_i_am?.philosophy_note || '[act1_philosophy_note]');
+      
+      let signalsHtml = '';
+      if (sectionConfig?.include_signals_inline !== false) {
+        const signals = profile.signals || {};
+        signalsHtml = Object.entries(signals).slice(0, 4).map(([key, sig]) => {
+          if (!sig || !sig.description) return '';
+          const label = key.toUpperCase().replace(/_/g, ' ');
+          const value = sig.description || '';
+          const sub = sig.evidence?.[0] || '';
+          return `<div class="fora-signal-card">
+  <span class="fora-signal-card__label">${label}</span>
+  <p class="fora-signal-card__value">${value}</p>
+  <p class="fora-signal-card__sub">${sub}</p>
+</div>`;
+        }).join('\n');
+      }
+      replaceSlot('act1_signals_html', signalsHtml);
+    } else if (sectionId === 'act2_work') {
+      replaceSlot('act2_eyebrow', "02 — WHAT I'VE DONE");
+      replaceSlot('act2_heading', 'PROOF OF WORK');
+      replaceSlot('act2_intro_line', brief.act2_what_ive_done?.intro_line || '[act2_intro_line]');
+      
+      const works = brief.act2_what_ive_done?.works || [];
+      const maxWorks = sectionConfig?.max_works ?? 3;
+      const worksHtml = works.slice(0, maxWorks).map(work => {
+        const title = work.title || '[work_title]';
+        const sectionFormat = work.section_format || 'featured_project';
+        const framingLine = work.framing_angle ? `[framing_line: ${work.framing_angle}]` : '[framing_line]';
+        const decision = work.decision_to_surface || '[decision_to_surface]';
+        const outcome = work.outcome_to_surface || '[outcome_to_surface]';
+        
+        let mediaHtml = '';
+        if (work.media && !work.nda_note) {
+          const resolvedMedia = resolveMedia(work.media);
+          if (resolvedMedia) {
+            const caption = resolvedMedia.caption || '[media_caption]';
+            const alt = resolvedMedia.alt || '[media_alt]';
+            if (resolvedMedia.type === 'image') {
+              mediaHtml = `<figure class="fora-work-media"><img src="${resolvedMedia.file}" alt="${alt}"><figcaption class="fora-work-media__caption">${caption}</figcaption></figure>`;
+            } else if (resolvedMedia.type === 'loom') {
+              mediaHtml = `<figure class="fora-work-media fora-work-media--embed"><div class="fora-embed-wrapper"><iframe src="https://www.loom.com/embed/dryrun" frameborder="0" allowfullscreen></iframe></div><figcaption class="fora-work-media__caption">${caption}</figcaption></figure>`;
+            } else if (resolvedMedia.type === 'youtube') {
+              mediaHtml = `<figure class="fora-work-media fora-work-media--embed"><div class="fora-embed-wrapper"><iframe src="https://www.youtube.com/embed/dryrun" frameborder="0" allowfullscreen></iframe></div><figcaption class="fora-work-media__caption">${caption}</figcaption></figure>`;
+            } else if (resolvedMedia.type === 'figma') {
+              mediaHtml = `<figure class="fora-work-media fora-work-media--embed"><div class="fora-embed-wrapper"><iframe src="https://www.figma.com/embed?embed_host=fora&url=dryrun" allowfullscreen></iframe></div><figcaption class="fora-work-media__caption">${caption}</figcaption></figure>`;
+            } else if (resolvedMedia.type === 'link') {
+              mediaHtml = `<a class="fora-work-card__link" href="${resolvedMedia.url || '#'}" target="_blank" rel="noopener">View case study →</a>`;
+            }
+          }
+        }
+
+        const badgeText = sectionFormat === 'featured_project' ? 'Featured' :
+                          sectionFormat === 'signal_card' ? 'Signal' :
+                          sectionFormat === 'case_study_link' ? 'Case Study' :
+                          sectionFormat === 'timeline_entry' ? 'Timeline' : sectionFormat;
+
+        if (sectionFormat === 'timeline_entry') {
+          return `<div class="fora-work-card">
+  <div class="fora-work-card__body">
+    <span class="fora-work-card__label">THE DECISION</span>
+    <p class="fora-work-card__decision">${decision}</p>
+    <span class="fora-work-card__label">THE OUTCOME</span>
+    <p class="fora-work-card__outcome">${outcome}</p>
+    ${mediaHtml}
+  </div>
+</div>`;
+        }
+
+        return `<div class="fora-work-card">
+  <div class="fora-work-card__header">
+    <span class="fora-work-card__company">${title}</span>
+    <span class="fora-work-card__badge">${badgeText}</span>
+  </div>
+  <div class="fora-work-card__body">
+    <p class="fora-work-card__framing">${framingLine}</p>
+    <span class="fora-work-card__label">THE DECISION</span>
+    <p class="fora-work-card__decision">${decision}</p>
+    <span class="fora-work-card__label">THE OUTCOME</span>
+    <p class="fora-work-card__outcome">${outcome}</p>
+    ${mediaHtml}
+  </div>
+</div>`;
+      }).join('\n');
+
+      replaceSlot('act2_works_html', worksHtml);
+    } else if (sectionId === 'act3_bring') {
+      replaceSlot('act3_eyebrow', "03 — WHAT I'LL BRING");
+      replaceSlot('act3_heading', 'THE FIRST 90 DAYS');
+      replaceSlot('act3_intro_line', brief.act3_what_ill_bring?.intro_line || '[act3_intro_line]');
+      replaceSlot('act3_day15_title', brief.act3_what_ill_bring?.day_15?.title || '[day_15_title]');
+      replaceSlot('act3_day15_body', brief.act3_what_ill_bring?.day_15?.body || '[day_15_body]');
+      replaceSlot('act3_day30_title', brief.act3_what_ill_bring?.day_30?.title || '[day_30_title]');
+      replaceSlot('act3_day30_body', brief.act3_what_ill_bring?.day_30?.body || '[day_30_body]');
+      replaceSlot('act3_day90_title', brief.act3_what_ill_bring?.day_90?.title || '[day_90_title]');
+      replaceSlot('act3_day90_body', brief.act3_what_ill_bring?.day_90?.body || '[day_90_body]');
+    } else if (sectionId === 'signal_cards') {
+      replaceSlot('signals_eyebrow', 'At a glance');
+      
+      const signals = profile.signals || {};
+      const signalsHtml = Object.entries(signals).slice(0, 6).map(([key, sig]) => {
+        if (!sig || !sig.description) return '';
+        const label = key.toUpperCase().replace(/_/g, ' ');
+        const value = sig.description || '';
+        const sub = sig.evidence?.[0] || '';
+        return `<div class="fora-signal-card">
+  <span class="fora-signal-card__label">${label}</span>
+  <p class="fora-signal-card__value">${value}</p>
+  <p class="fora-signal-card__sub">${sub}</p>
+</div>`;
+      }).join('\n');
+      replaceSlot('signals_grid_html', signalsHtml);
+    } else if (sectionId === 'direct_cta') {
+      replaceSlot('cta_heading', "Let's talk.");
+      replaceSlot('cta_sub', `Open to discussing how my experience fits the ${brief._meta.role || 'role'} at ${brief._meta.company || 'company'}.`);
+      replaceSlot('cta_button_label', 'Get in touch');
+      replaceSlot('cta_url', `mailto:${profile.identity?.email || 'email@example.com'}`);
+      replaceSlot('cta_email', profile.identity?.email || 'email@example.com');
+    } else if (sectionId === 'footer') {
+      const sectionBrief = buildSectionBrief(sectionId, brief, profile, plan);
+      replaceSlot('designer_name', profile.identity?.name || '[designer_name]');
+      replaceSlot('portfolio_url', profile.identity?.portfolio_url || '#');
+      replaceSlot('linkedin_url', profile.identity?.linkedin_url || '#');
+      replaceSlot('email', profile.identity?.email || 'email@example.com');
+      replaceSlot('about_url', sectionBrief.about_url || 'https://github.com/meetshahco/FORA');
+    }
+
+    return mockHtml.trim();
+  }
 
   // Load the codegen prompt
   const codegenPromptPath = path.join(__dirname, 'prompts', 'codegen-prompt.md');
@@ -735,6 +881,56 @@ function printDeploySummary(liveUrl, localHtmlPath, brief) {
   console.log('');
 }
 
+// Helper to log application data with file locking concurrency protection
+async function writeApplicationsLog(appRecord) {
+  const appsPath = path.join(__dirname, 'applications', 'applications.json');
+  const lockPath = appsPath + '.lock';
+  const lockDir = path.dirname(appsPath);
+  fs.mkdirSync(lockDir, { recursive: true });
+
+  const maxAttempts = 10;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      fs.writeFileSync(lockPath, process.pid.toString(), { flag: 'wx', encoding: 'utf8' });
+      break;
+    } catch (e) {
+      if (e.code === 'EEXIST') {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          throw new Error(`Could not acquire file lock on ${appsPath} after ${maxAttempts} attempts.`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  try {
+    let apps = [];
+    if (fs.existsSync(appsPath)) {
+      try {
+        apps = JSON.parse(fs.readFileSync(appsPath, 'utf8'));
+      } catch (e) {
+        warn(`Could not parse applications.json: ${e.message}. Re-initializing.`);
+      }
+    }
+    apps.push(appRecord);
+    fs.writeFileSync(appsPath, JSON.stringify(apps, null, 2), 'utf8');
+    ok(`Logged → applications/applications.json (${apps.length} total)`);
+  } finally {
+    try {
+      if (fs.existsSync(lockPath)) {
+        fs.unlinkSync(lockPath);
+      }
+    } catch (e) {
+      warn(`Could not remove lock file: ${e.message}`);
+    }
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN
 // ════════════════════════════════════════════════════════════════════════════
@@ -743,7 +939,7 @@ async function main() {
   const mode   = args[0];
   const briefArg = args[1];
 
-  if (!mode || !briefArg || !['--run', '--publish', '--deploy'].includes(mode)) {
+  if (!mode || !briefArg || !['--run', '--publish', '--deploy', '--dry-run'].includes(mode)) {
     console.log(`
 ${BOLD}FORA — generate.js${RESET}
 
@@ -751,6 +947,7 @@ Usage:
   node generate.js --run     briefs/[slug].json   # assemble page locally       (needs AI key)
   node generate.js --publish briefs/[slug].json   # assemble + deploy to Vercel (needs AI key + Vercel)
   node generate.js --deploy  briefs/[slug].json   # deploy existing output/     (needs Vercel only)
+  node generate.js --dry-run briefs/[slug].json   # assemble page with mock placeholder content (no keys needed)
 
   --deploy is for Option 2: you generated the HTML manually in an AI chat,
   saved it to output/[slug]/index.html, and now want to deploy without an AI key.
@@ -768,9 +965,10 @@ Force provider:     AI_PROVIDER=gemini        (if you have multiple keys set)
 
   const publish = mode === '--publish';
   const deployOnly = mode === '--deploy';
+  const dryRun = mode === '--dry-run';
 
   console.log('');
-  console.log(`${BOLD}FORA — ${publish ? 'Generate + Publish' : 'Generate'}${RESET}`);
+  console.log(`${BOLD}FORA — ${publish ? 'Generate + Publish' : (dryRun ? 'Dry Run Generate' : 'Generate')}${RESET}`);
   console.log('──────────────────────────────────────────');
 
   // ── Load brief ──────────────────────────────────────────────────────────
@@ -835,12 +1033,7 @@ Regenerate before deploying:
       ok(`Deployed → ${liveUrl}`);
 
       // Log to applications.json
-      const appsPath = path.join(__dirname, 'applications', 'applications.json');
-      let apps = [];
-      if (fs.existsSync(appsPath)) {
-        try { apps = JSON.parse(fs.readFileSync(appsPath, 'utf8')); } catch {}
-      }
-      apps.push({
+      await writeApplicationsLog({
         company:          brief._meta.company,
         role:             brief._meta.role,
         slug:             plan.slug,
@@ -853,9 +1046,6 @@ Regenerate before deploying:
         outcome:          null,
         notes:            '',
       });
-      fs.mkdirSync(path.dirname(appsPath), { recursive: true });
-      fs.writeFileSync(appsPath, JSON.stringify(apps, null, 2), 'utf8');
-      ok(`Logged → applications/applications.json (${apps.length} total)`);
 
       printDeploySummary(liveUrl, outputFile, brief);
     } catch (e) {
@@ -887,7 +1077,8 @@ Regenerate before deploying:
         brief,
         profile,
         dsTokens,
-        plan
+        plan,
+        dryRun
       );
       sectionOutputs.push(html);
       succeededSections.push(section.id);
@@ -972,12 +1163,7 @@ Regenerate before deploying:
       ok(`Deployed → ${liveUrl}`);
 
       // ── Log to applications/applications.json ──────────────────────────
-      const appsPath = path.join(__dirname, 'applications', 'applications.json');
-      let apps = [];
-      if (fs.existsSync(appsPath)) {
-        try { apps = JSON.parse(fs.readFileSync(appsPath, 'utf8')); } catch {}
-      }
-      apps.push({
+      await writeApplicationsLog({
         company:          brief._meta.company,
         role:             brief._meta.role,
         slug:             plan.slug,
@@ -990,9 +1176,6 @@ Regenerate before deploying:
         outcome:          null,
         notes:            '',
       });
-      fs.mkdirSync(path.dirname(appsPath), { recursive: true });
-      fs.writeFileSync(appsPath, JSON.stringify(apps, null, 2), 'utf8');
-      ok(`Logged → applications/applications.json (${apps.length} total)`);
 
       printDeploySummary(liveUrl, outputFile, brief);
     } catch (e) {
